@@ -15,7 +15,8 @@ import {
   FaArrowRight,
   FaUserMd,
   FaLeaf,
-  FaHeartbeat
+  FaHeartbeat,
+  FaTag
 } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
 import { GiStomach, GiHealthNormal, GiFruitBowl } from 'react-icons/gi';
@@ -100,7 +101,7 @@ const HeroSection = () => {
     }
   };
 
-  // Floating cards data for desktop - Updated with Teal theme
+  // Floating cards data for desktop
   const floatingCards = [
     { icon: FaSmile, text: "Happy Clients", value: "10K+", color: "#18606D", delay: 0 },
     { icon: FaStethoscope, text: "Doctor Approved", value: "100%", color: "#2A7F8F", delay: 0.2 },
@@ -157,7 +158,7 @@ const HeroSection = () => {
             variants={staggerChildren}
             className="relative z-10 order-1 lg:order-1"
           >
-            {/* Urgency Badge - Teal theme */}
+            {/* Urgency Badge with Price */}
             <motion.div 
               variants={fadeInUp}
               className="inline-flex items-center gap-2 bg-gradient-to-r from-[#CFE8EC] to-[#D9EEF2] text-[#18606D] px-3 sm:px-4 py-1.5 sm:py-2 rounded-full mb-4 sm:mb-6 shadow-sm border border-[#D9EEF2]"
@@ -166,7 +167,10 @@ const HeroSection = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#18606D] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-[#18606D]"></span>
               </div>
-              <span className="text-xs sm:text-sm font-semibold">Limited Time ₹99 Offer</span>
+              <FaTag className="text-xs sm:text-sm" />
+              <span className="text-xs sm:text-sm font-semibold">Limited Time Offer</span>
+              <span className="text-xs sm:text-sm line-through text-[#64748B]">₹399</span>
+              <span className="text-xs sm:text-sm font-bold text-[#18606D]">₹99 Only</span>
               <FaClock className="text-xs sm:text-sm ml-1" />
             </motion.div>
 
@@ -182,12 +186,13 @@ const HeroSection = () => {
               </span>
             </motion.h1>
 
-            {/* Subheading */}
+            {/* Subheading with Price */}
             <motion.p 
               variants={fadeInUp}
               className="text-sm sm:text-base lg:text-lg xl:text-xl text-[#64748B] leading-relaxed mb-6 sm:mb-8 max-w-xl"
             >
-              Struggling with bloating, acidity, IBS, or skin issues? Start with a ₹99 expert consultation and get personalized gut health solutions.
+              Struggling with bloating, acidity, IBS, or skin issues? Start with a <span className="line-through text-[#94A3B8]">₹399</span>{' '}
+              <span className="font-bold text-[#18606D]">₹99</span> expert consultation and get personalized gut health solutions.
             </motion.p>
 
             {/* Bullet Points with Teal Theme */}
@@ -219,7 +224,7 @@ const HeroSection = () => {
               ))}
             </motion.div>
 
-            {/* CTA Buttons - Teal Theme */}
+            {/* CTA Buttons with Price Highlight */}
             <motion.div 
               variants={fadeInUp}
               className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8"
@@ -231,7 +236,10 @@ const HeroSection = () => {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-white to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
                 <FaCalendarCheck className="text-base sm:text-lg lg:text-xl" />
-                Book Consultation for ₹99
+                <span>Book Consultation for</span>
+                <span className="line-through text-white/70 text-xs sm:text-sm">₹399</span>
+                <span className="font-bold text-lg sm:text-xl">₹99</span>
+                <span className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-20 blur-sm" />
               </motion.button>
               
               <motion.button
@@ -244,7 +252,7 @@ const HeroSection = () => {
               </motion.button>
             </motion.div>
 
-            {/* Trust Badges - Teal Theme */}
+            {/* Trust Badges with Price Mention */}
             <motion.div 
               variants={fadeInUp}
               className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4 border-t border-[#D9EEF2]"
@@ -274,6 +282,12 @@ const HeroSection = () => {
                   <p className="font-semibold text-[#0F172A] text-sm sm:text-base">100% Natural</p>
                   <p className="text-[10px] sm:text-xs text-[#64748B]">Approach</p>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 bg-[#CFE8EC]/30 px-2 py-1 rounded-full">
+                <FaTag className="text-[#18606D] text-xs" />
+                <span className="text-[10px] font-medium text-[#18606D]">
+                  <span className="line-through text-[#64748B]">₹399</span> → ₹99
+                </span>
               </div>
             </motion.div>
           </motion.div>
@@ -330,6 +344,18 @@ const HeroSection = () => {
                     </motion.div>
                   </AnimatePresence>
 
+                  {/* Price Offer Badge on Carousel */}
+                  <div className="absolute top-4 right-4 z-30">
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-3 py-1.5 shadow-lg">
+                      <div className="flex items-center gap-1">
+                        <FaTag className="text-white text-[10px]" />
+                        <span className="text-white text-[10px] line-through opacity-80">₹399</span>
+                        <span className="text-white text-sm font-bold">₹99</span>
+                        <span className="text-white text-[8px]">OFFER</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Navigation Arrows */}
                   <button
                     onClick={prevSlide}
@@ -373,7 +399,7 @@ const HeroSection = () => {
               <div className="absolute -inset-0.5 bg-gradient-to-r from-[#18606D]/10 to-[#2A7F8F]/10 rounded-2xl blur-xl -z-10" />
             </div>
 
-            {/* Desktop Floating Cards - Teal Theme */}
+            {/* Desktop Floating Cards */}
             <div className="hidden lg:block">
               <motion.div
                 initial={{ opacity: 0, x: 20, y: -20 }}
@@ -456,7 +482,7 @@ const HeroSection = () => {
               </div>
             </div>
 
-            {/* Additional Trust Badge */}
+            {/* Additional Trust Badge with Price */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -465,21 +491,28 @@ const HeroSection = () => {
             >
               <MdVerified className="text-[#18606D] text-xs" />
               <span className="text-[10px] font-medium text-[#64748B]">Trusted by medical professionals worldwide</span>
+              <div className="w-px h-3 bg-[#D9EEF2]" />
+              <span className="text-[10px] font-medium text-[#18606D]">
+                <span className="line-through text-[#94A3B8]">₹399</span> → ₹99 Offer
+              </span>
               <FaHeartbeat className="text-[#2A7F8F] text-xs" />
             </motion.div>
           </motion.div>
         </div>
       </div>
 
-      {/* Mobile Sticky CTA - Teal Theme */}
+      {/* Mobile Sticky CTA with Price */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-[#D9EEF2] p-3 shadow-lg z-50">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <motion.button
             whileTap={{ scale: 0.98 }}
             className="flex-1 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white font-semibold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm"
           >
             <FaCalendarCheck />
-            Book ₹99 Consultation
+            <span>Book</span>
+            <span className="line-through text-white/70 text-xs">₹399</span>
+            <span className="font-bold">₹99</span>
+            <span className='max-sm:hidden'>Consultation</span>
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.98 }}

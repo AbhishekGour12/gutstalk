@@ -103,16 +103,144 @@ const ProblemSolutionSection = () => {
     }
   };
 
+  // Background images array with gut-related visuals - vibrant and visible
+  const backgroundImages = [
+    {
+      src: "https://plus.unsplash.com/premium_photo-1722658473477-0c8ab1b79acf?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      alt: "Stomach anatomy",
+      position: "top-0 left-0",
+      size: "w-64 h-64 sm:w-80 sm:h-80",
+      opacity: "opacity-60",
+      zIndex: "z-10",
+      animation: { y: [0, 15, 0], x: [0, 10, 0], duration: 20 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=400&h=400&fit=crop",
+      alt: "Intestines illustration",
+      position: "bottom-0 right-0",
+      size: "w-72 h-72 sm:w-96 sm:h-96",
+      opacity: "opacity-50",
+      zIndex: "z-10",
+      animation: { y: [0, -12, 0], x: [0, -8, 0], duration: 22 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=400&h=400&fit=crop",
+      alt: "Fresh vegetables",
+      position: "top-1/3 right-10",
+      size: "w-48 h-48 sm:w-56 sm:h-56",
+      opacity: "opacity-60",
+      zIndex: "z-10",
+      animation: { y: [0, -10, 0], x: [0, 5, 0], duration: 18 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&h=400&fit=crop",
+      alt: "Fermented foods",
+      position: "bottom-1/3 left-5",
+      size: "w-52 h-52 sm:w-64 sm:h-64",
+      opacity: "opacity-25",
+      zIndex: "z-0",
+      animation: { y: [0, 12, 0], x: [0, -6, 0], duration: 24 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop",
+      alt: "Gut microbiome",
+      position: "top-2/3 left-1/4",
+      size: "w-56 h-56 sm:w-68 sm:h-68",
+      opacity: "opacity-20",
+      zIndex: "z-0",
+      animation: { y: [0, -15, 0], x: [0, 8, 0], duration: 26 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
+      alt: "Healthy eating bowl",
+      position: "top-1/4 left-1/3",
+      size: "w-44 h-44 sm:w-52 sm:h-52",
+      opacity: "opacity-35",
+      zIndex: "z-0",
+      animation: { y: [0, 8, 0], x: [0, -5, 0], duration: 16 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop",
+      alt: "Healthy salad",
+      position: "bottom-20 right-1/3",
+      size: "w-48 h-48 sm:w-60 sm:h-60",
+      opacity: "opacity-50",
+      zIndex: "z-10",
+      animation: { y: [0, 10, 0], x: [0, -10, 0], duration: 20 }
+    }
+  ];
+
+  // Floating animation helper
+  const floatAnimation = (yOffset, xOffset, duration) => ({
+    animate: {
+      y: [0, yOffset, 0],
+      x: [0, xOffset, 0],
+    },
+    transition: {
+      duration: duration,
+      repeat: Infinity,
+      ease: "easeInOut",
+      repeatType: "reverse",
+    },
+  });
+
   return (
     <section className="relative py-16 sm:py-20 md:py-24 lg:py-32 overflow-hidden bg-gradient-to-b from-[#F4FAFB] via-white to-[#F4FAFB]">
-      {/* Background Elements - Teal Theme */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-r from-[#CFE8EC]/20 to-transparent" />
-        <div className="absolute bottom-0 right-0 w-full h-96 bg-gradient-to-l from-[#D9EEF2]/20 to-transparent" />
-        
-        {/* Floating Particles */}
-        <div className="absolute top-1/4 left-10 w-64 h-64 bg-[#18606D]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-10 w-80 h-80 bg-[#2A7F8F]/5 rounded-full blur-3xl" />
+      {/* ========== VISIBLE BACKGROUND IMAGES - VIBRANT AND COLORFUL ========== */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {/* Decorative organic shapes for depth */}
+        <div className="absolute top-0 left-0 w-full h-full">
+          {/* Large vibrant background images - clearly visible */}
+          {backgroundImages.map((img, idx) => (
+            <motion.div
+              key={`bg-img-${idx}`}
+              className={`absolute ${img.position} ${img.size} ${img.opacity} ${img.zIndex} rounded-2xl overflow-hidden`}
+              animate={floatAnimation(img.animation.y[1], img.animation.x[1], img.animation.duration)}
+              style={{ filter: "brightness(0.95) contrast(1.05)" }}
+            >
+              <Image
+                src={img.src}
+                alt={img.alt}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 150px, 250px"
+                priority={idx < 3}
+              />
+            </motion.div>
+          ))}
+
+          {/* Additional colorful vegetable icons for extra vibrancy */}
+          <div className="absolute top-5 left-[15%] w-16 h-16 opacity-40 z-0 animate-pulse">
+            <svg viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="50" r="35" fill="#F59E0B" fillOpacity="0.2" stroke="#F59E0B" strokeWidth="1.5"/>
+              <path d="M50 20 L50 80 M20 50 L80 50" stroke="#F59E0B" strokeWidth="1.5"/>
+              <circle cx="50" cy="50" r="8" fill="#F59E0B" fillOpacity="0.3"/>
+            </svg>
+          </div>
+          
+          <div className="absolute bottom-10 right-[12%] w-20 h-20 opacity-35 z-0 animate-pulse delay-700">
+            <svg viewBox="0 0 100 100" fill="none">
+              <path d="M50 25 L35 45 L25 55 L35 65 L50 85 L65 65 L75 55 L65 45 Z" fill="#2A7F8F" fillOpacity="0.2" stroke="#2A7F8F" strokeWidth="1.2"/>
+            </svg>
+          </div>
+
+          <div className="absolute top-1/2 left-[5%] w-12 h-12 opacity-30 z-0 animate-bounce">
+            <svg viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="50" r="30" fill="#18606D" fillOpacity="0.15" stroke="#18606D" strokeWidth="1"/>
+              <path d="M50 30 L50 70 M30 50 L70 50" stroke="#18606D" strokeWidth="1"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Soft gradient overlays to ensure text readability - not covering images completely */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-transparent to-white/60 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F4FAFB]/40 via-transparent to-[#F4FAFB]/40 pointer-events-none" />
+      </div>
+
+      {/* Subtle floating particles - minimal to not compete with images */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-1/4 left-10 w-64 h-64 bg-[#18606D]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-10 w-80 h-80 bg-[#2A7F8F]/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,10 +252,10 @@ const ProblemSolutionSection = () => {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={containerVariants}
-            className="relative"
+            className="relative z-20"
           >
-            {/* Problem Container with Soft Coral/Peach Gradient (keeping warm tone for contrast) */}
-            <div className="relative bg-gradient-to-br from-[#FEF7F0] via-white to-[#FEF0E8] rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border border-[#FEE6D8] hover:shadow-2xl transition-shadow duration-500">
+            {/* Problem Container with Semi-transparent background to show background images */}
+            <div className="relative bg-gradient-to-br from-[#FEF7F0]/95 via-white/95 to-[#FEF0E8]/95 backdrop-blur-sm rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border border-[#FEE6D8] hover:shadow-2xl transition-shadow duration-500">
               {/* Warning Glow Effect */}
               <div className="absolute -top-5 -right-5 w-24 h-24 bg-[#E67E22]/5 rounded-full blur-2xl" />
               <div className="absolute -bottom-5 -left-5 w-24 h-24 bg-[#F39C12]/5 rounded-full blur-2xl" />
@@ -219,10 +347,10 @@ const ProblemSolutionSection = () => {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={containerVariants}
-            className="relative"
+            className="relative z-20"
           >
-            {/* Solution Container with Teal Gradient */}
-            <div className="relative bg-gradient-to-br from-[#F4FAFB] via-white to-[#E8F4F7] rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border border-[#D9EEF2] hover:shadow-2xl transition-shadow duration-500">
+            {/* Solution Container with Semi-transparent background to show background images */}
+            <div className="relative bg-gradient-to-br from-[#F4FAFB]/95 via-white/95 to-[#E8F4F7]/95 backdrop-blur-sm rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border border-[#D9EEF2] hover:shadow-2xl transition-shadow duration-500">
               {/* Success Glow Effect - Teal */}
               <div className="absolute -top-5 -right-5 w-24 h-24 bg-[#18606D]/5 rounded-full blur-2xl" />
               <div className="absolute -bottom-5 -left-5 w-24 h-24 bg-[#2A7F8F]/5 rounded-full blur-2xl" />
@@ -351,11 +479,11 @@ const ProblemSolutionSection = () => {
         </div>
 
         {/* Divider Gradient - Teal */}
-        <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-3/4 bg-gradient-to-b from-transparent via-[#CFE8EC] to-transparent" />
+        <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-3/4 bg-gradient-to-b from-transparent via-[#CFE8EC] to-transparent z-20" />
       </div>
 
       {/* Decorative Bottom Element */}
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F4FAFB] to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F4FAFB] to-transparent pointer-events-none z-20" />
     </section>
   );
 };

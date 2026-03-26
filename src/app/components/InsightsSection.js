@@ -2,61 +2,112 @@
 import React from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
-
-import { 
-  MdOutlineAnalytics, 
-  MdOutlineHealthAndSafety,
-  MdOutlineScience
-} from 'react-icons/md';
 import Image from 'next/image';
 
-// ========== Premium Background Visuals Component ==========
+// ========== Premium Background Visuals with Gut Imagery ==========
 const BackgroundVisuals = () => {
-  // Abstract Stomach Outline SVG (large background element)
-  const StomachOutline = () => (
-    <svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M200 50 C150 50, 120 80, 100 120 C80 160, 70 200, 80 250 C90 300, 120 340, 170 360 C210 375, 260 370, 300 340 C340 310, 360 260, 350 210 C340 160, 310 120, 270 90 C240 70, 220 50, 200 50Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M160 130 C150 150, 145 170, 150 190 C155 210, 170 220, 190 225"
-        stroke="currentColor"
-        strokeWidth="1"
-        fill="none"
-        opacity="0.6"
-      />
-      <path
-        d="M240 140 C250 160, 255 180, 250 200 C245 220, 230 230, 210 235"
-        stroke="currentColor"
-        strokeWidth="1"
-        fill="none"
-        opacity="0.6"
-      />
+  // Array of gut-related images for background
+  const gutImages = [
+    {
+      src: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=300&h=300&fit=crop", // stomach anatomy
+      alt: "Stomach anatomy",
+      size: "w-48 h-48 sm:w-64 sm:h-64",
+      opacity: "opacity-[0.08]",
+      position: "top-10 left-5",
+      animation: { y: [-10, 10, -10], x: [-5, 5, -5], duration: 20 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=300&fit=crop", // intestines
+      alt: "Intestines",
+      size: "w-56 h-56 sm:w-72 sm:h-72",
+      opacity: "opacity-[0.07]",
+      position: "bottom-10 right-5",
+      animation: { y: [15, -15, 15], x: [10, -10, 10], duration: 25 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=300&h=300&fit=crop", // healthy vegetables
+      alt: "Vegetables",
+      size: "w-40 h-40 sm:w-52 sm:h-52",
+      opacity: "opacity-[0.1]",
+      position: "top-1/3 right-10",
+      animation: { y: [-8, 8, -8], x: [5, -5, 5], duration: 18 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1547592180-85f173990554?w=300&h=300&fit=crop", // fermented foods
+      alt: "Fermented foods",
+      size: "w-44 h-44 sm:w-60 sm:h-60",
+      opacity: "opacity-[0.09]",
+      position: "bottom-1/4 left-10",
+      animation: { y: [12, -12, 12], x: [-8, 8, -8], duration: 22 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=300&fit=crop", // healthy eating
+      alt: "Healthy eating",
+      size: "w-48 h-48 sm:w-64 sm:h-64",
+      opacity: "opacity-[0.06]",
+      position: "top-2/3 right-20",
+      animation: { y: [20, -20, 20], x: [-10, 10, -10], duration: 28 }
+    },
+    {
+      src: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=300&h=300&fit=crop", // gut microbiome
+      alt: "Gut microbiome",
+      size: "w-52 h-52 sm:w-68 sm:h-68",
+      opacity: "opacity-[0.07]",
+      position: "top-1/2 left-1/4",
+      animation: { y: [-15, 15, -15], x: [8, -8, 8], duration: 24 }
+    }
+  ];
+
+  // Icon SVGs for additional visible elements
+  const GutIcon = () => (
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <path d="M50 20 C35 20, 25 30, 20 45 C15 60, 18 75, 28 85 C38 95, 52 95, 65 85 C78 75, 82 60, 78 45 C74 30, 65 20, 50 20Z" fill="currentColor" stroke="currentColor" strokeWidth="1" opacity="0.8"/>
+      <path d="M35 50 L45 55 L55 50 L65 55" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="40" cy="40" r="3" fill="currentColor" opacity="0.9"/>
+      <circle cx="60" cy="40" r="3" fill="currentColor" opacity="0.9"/>
     </svg>
   );
 
-  // Microbiome Organic Shapes (floating blobs)
-  const MicrobiomeBlob = ({ size, opacity, delay }) => (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      <path
-        d="M50 10 C65 10, 80 20, 85 35 C90 50, 85 70, 70 85 C55 100, 35 95, 20 80 C5 65, 5 40, 20 25 C35 10, 35 10, 50 10Z"
-        fill="currentColor"
-        opacity={opacity}
-      />
+  const IntestineIcon = () => (
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <path d="M30 20 L20 40 L30 60 L20 80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <path d="M45 25 L35 45 L45 65 L35 85" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <path d="M60 20 L70 40 L60 60 L70 80" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <path d="M75 25 L85 45 L75 65 L85 85" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
     </svg>
   );
 
-  // Floating animation variants
-  const floatAnimation = (duration, yOffset, xOffset, rotate) => ({
+  const VegetableIcon = () => (
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <path d="M50 70 L50 30 M50 30 L35 45 M50 30 L65 45" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <ellipse cx="50" cy="70" rx="18" ry="12" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+      <path d="M32 52 L28 45 L35 48 M68 52 L72 45 L65 48" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    </svg>
+  );
+
+  const ProbioticIcon = () => (
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <circle cx="50" cy="50" r="25" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+      <circle cx="40" cy="45" r="3" fill="currentColor" opacity="0.8"/>
+      <circle cx="60" cy="45" r="3" fill="currentColor" opacity="0.8"/>
+      <path d="M45 58 Q50 65 55 58" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+      <path d="M35 35 L30 28 M65 35 L70 28" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  );
+
+  // Icons array for additional visible elements
+  const icons = [
+    { component: GutIcon, position: "top-20 right-1/4", size: "w-20 h-20 sm:w-28 sm:h-28", opacity: "opacity-[0.12]", animation: { y: [-5, 5, -5], x: [3, -3, 3], duration: 15 } },
+    { component: IntestineIcon, position: "bottom-32 left-1/3", size: "w-24 h-24 sm:w-32 sm:h-32", opacity: "opacity-[0.1]", animation: { y: [8, -8, 8], x: [-4, 4, -4], duration: 18 } },
+    { component: VegetableIcon, position: "top-2/3 right-1/5", size: "w-16 h-16 sm:w-20 sm:h-20", opacity: "opacity-[0.15]", animation: { y: [-6, 6, -6], x: [5, -5, 5], duration: 12 } },
+    { component: ProbioticIcon, position: "bottom-1/5 right-1/4", size: "w-18 h-18 sm:w-24 sm:h-24", opacity: "opacity-[0.11]", animation: { y: [10, -10, 10], x: [-7, 7, -7], duration: 20 } }
+  ];
+
+  // Floating animation helper
+  const floatAnimation = (yOffset, xOffset, duration) => ({
     animate: {
       y: [0, yOffset, 0],
       x: [0, xOffset, 0],
-      rotate: [0, rotate, 0],
     },
     transition: {
       duration: duration,
@@ -68,64 +119,51 @@ const BackgroundVisuals = () => {
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Large faded stomach outline - background element */}
-      <motion.div
-        className="absolute left-0 bottom-0 w-[500px] h-[500px] opacity-[0.04] text-[#18606D]"
-        animate={{
-          y: [0, -15, 0],
-          x: [0, 10, 0],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut",
-          repeatType: "reverse",
-        }}
-      >
-        <StomachOutline />
-      </motion.div>
+      {/* Background Images - Gut, Intestines, Vegetables */}
+      {gutImages.map((img, idx) => (
+        <motion.div
+          key={`img-${idx}`}
+          className={`absolute ${img.position} ${img.size} ${img.opacity} rounded-full overflow-hidden blur-[1px]`}
+          animate={floatAnimation(img.animation.y[1], img.animation.x[1], img.animation.duration)}
+        >
+          <Image
+            src={img.src}
+            alt={img.alt}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 150px, 200px"
+          />
+        </motion.div>
+      ))}
 
-      {/* Second stomach outline - top right */}
-      <motion.div
-        className="absolute right-0 top-20 w-[350px] h-[350px] opacity-[0.03] text-[#2A7F8F]"
-        animate={{
-          y: [0, 20, 0],
-          x: [0, -15, 0],
-          rotate: [0, 5, 0],
-        }}
-        transition={{
-          duration: 22,
-          repeat: Infinity,
-          ease: "easeInOut",
-          repeatType: "reverse",
-        }}
-      >
-        <StomachOutline />
-      </motion.div>
+      {/* Icon SVGs for additional visible elements */}
+      {icons.map((icon, idx) => {
+        const IconComponent = icon.component;
+        return (
+          <motion.div
+            key={`icon-${idx}`}
+            className={`absolute ${icon.position} ${icon.size} ${icon.opacity} text-[#18606D]`}
+            animate={floatAnimation(icon.animation.y[1], icon.animation.x[1], icon.animation.duration)}
+          >
+            <IconComponent />
+          </motion.div>
+        );
+      })}
 
-      {/* Microbiome organic blobs - floating */}
-      <motion.div
-        className="absolute top-1/4 left-[5%] opacity-[0.06] text-[#18606D]"
-        {...floatAnimation(18, -25, 15, 8)}
-      >
-        <MicrobiomeBlob size={120} opacity={0.6} delay={0} />
-      </motion.div>
+      {/* Additional vibrant vegetable/food icons as small accents */}
+      <div className="absolute top-1/4 left-1/5 w-12 h-12 opacity-[0.2] text-[#2A7F8F] animate-pulse">
+        <svg viewBox="0 0 100 100" fill="none">
+          <path d="M50 30 L45 45 L35 50 L45 55 L50 70 L55 55 L65 50 L55 45 Z" fill="currentColor" stroke="currentColor" strokeWidth="1"/>
+        </svg>
+      </div>
+      <div className="absolute bottom-1/3 right-1/6 w-10 h-10 opacity-[0.18] text-[#18606D] animate-pulse delay-1000">
+        <svg viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="20" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          <path d="M50 30 L50 70 M30 50 L70 50" stroke="currentColor" strokeWidth="1.2"/>
+        </svg>
+      </div>
 
-      <motion.div
-        className="absolute bottom-1/3 right-[3%] opacity-[0.05] text-[#2A7F8F]"
-        {...floatAnimation(20, 30, -20, -5)}
-      >
-        <MicrobiomeBlob size={100} opacity={0.5} delay={0} />
-      </motion.div>
-
-      <motion.div
-        className="absolute top-2/3 left-[15%] opacity-[0.04] text-[#18606D]"
-        {...floatAnimation(15, -20, 25, 10)}
-      >
-        <MicrobiomeBlob size={80} opacity={0.4} delay={0} />
-      </motion.div>
-
-      {/* Soft glowing gradient blobs for depth */}
+      {/* Soft gradient overlays for depth */}
       <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-r from-[#18606D]/5 to-transparent rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-l from-[#2A7F8F]/5 to-transparent rounded-full blur-3xl" />
       <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-[#CFE8EC]/10 rounded-full blur-3xl" />
@@ -205,7 +243,7 @@ const InsightsSection = () => {
 
   return (
     <section className="relative py-16 sm:py-20 md:py-24 lg:py-32 overflow-hidden bg-gradient-to-br from-[#F4FAFB] via-white to-[#F4FAFB]">
-      {/* Premium Background Visuals */}
+      {/* Premium Background Visuals with Gut Imagery */}
       <BackgroundVisuals />
 
       {/* Existing Background Elements - kept for depth */}
