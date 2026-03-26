@@ -323,7 +323,7 @@ const HeroSection = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
                       
                       {/* Slide Content Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 md:p-6 text-white">
+                      <div className="absolute bottom-10 left-0 right-0 p-4 sm:p-5 md:p-6 text-white">
                         <motion.div
                           initial={{ y: 20, opacity: 0 }}
                           animate={{ y: 0, opacity: 1 }}
@@ -345,7 +345,7 @@ const HeroSection = () => {
                   </AnimatePresence>
 
                   {/* Price Offer Badge on Carousel */}
-                  <div className="absolute top-4 right-4 z-30">
+                  <div className="absolute top-4 right-60 max-sm:right-3 z-30">
                     <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-3 py-1.5 shadow-lg">
                       <div className="flex items-center gap-1">
                         <FaTag className="text-white text-[10px]" />
