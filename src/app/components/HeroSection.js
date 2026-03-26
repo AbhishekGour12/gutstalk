@@ -482,21 +482,7 @@ const HeroSection = () => {
               </div>
             </div>
 
-            {/* Additional Trust Badge with Price */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-              className="hidden lg:flex items-center justify-center gap-2 mt-4 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 border border-[#D9EEF2] w-fit mx-auto"
-            >
-              <MdVerified className="text-[#18606D] text-xs" />
-              <span className="text-[10px] font-medium text-[#64748B]">Trusted by medical professionals worldwide</span>
-              <div className="w-px h-3 bg-[#D9EEF2]" />
-              <span className="text-[10px] font-medium text-[#18606D]">
-                <span className="line-through text-[#94A3B8]">₹399</span> → ₹99 Offer
-              </span>
-              <FaHeartbeat className="text-[#2A7F8F] text-xs" />
-            </motion.div>
+         
           </motion.div>
         </div>
       </div>
