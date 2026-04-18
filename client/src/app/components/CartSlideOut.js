@@ -370,7 +370,7 @@ useEffect(() => {
         userId: user?true:false,
       
       };
-      const order = await axios.post(`${process.env.NEXT_PUBLIC_IMAGE_URL}/api/order`, formData)
+      const order = await axios.post(`${process.env.NEXT_PUBLIC_API}/api/order`, formData)
       toast.success("Order Placed!");
       await clearCart();
       localStorage.removeItem("cart")
