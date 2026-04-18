@@ -128,7 +128,7 @@ export const initiateBooking = async (req, res) => {
 
     res.json({ success: true, bookingId: booking.bookingId, meetLink });
   } catch (error) {
-    console.error('❌ initiateBooking error:', error.message);
+    console.log('❌ initiateBooking error:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
