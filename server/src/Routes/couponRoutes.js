@@ -8,7 +8,7 @@ import {
   toggleCouponStatus,
   validateCoupon,
   applyCoupon,
-} from "../controllers/couponController.js";
+} from "../Controllers/couponController.js";
 
 const router = express.Router();
 router.post("/apply", applyCoupon)
