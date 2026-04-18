@@ -48,7 +48,7 @@ const Navbar = () => {
   const navLinks = [
     { name: 'Home', href: '/', icon: FiHome },
     { name: 'Products', href: '/products', icon: FiFileText, hasDropdown: true },
-    { name: 'My Orders', href: '/orders', icon: FiUser },
+    { name: 'My Orders', href: '/dashboard', icon: FiUser },
     { name: 'Contact', href: '/contact', icon: FiMail },
     { name: 'About', href: '/about', icon: FiShield },
   ];
@@ -157,9 +157,10 @@ const Navbar = () => {
                 ) : (
                   <Link
                     href={link.href}
+                    
                     className={`text-sm font-medium relative transition-colors ${
                       isActive(link.href) ? 'text-[#18606D]' : 'text-[#64748B] hover:text-[#18606D]'
-                    }`}
+                    } ${link.name === 'My Orders' && !user ? 'pointer-events-none opacity-50' : ''}`}
                   >
                     {link.name}
                     {isActive(link.href) && (

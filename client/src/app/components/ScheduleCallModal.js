@@ -113,6 +113,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
     setLoadingSlots(true);
     try {
       const res = await availabilityAPI.getSlots(format(date, 'yyyy-MM-dd'));
+      console.log('Slots for', format(date, 'yyyy-MM-dd'), res.slots);
       setSlots(res.slots || []);
     } catch (err) {
       toast.error('Failed to load slots');
@@ -132,6 +133,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
   };
 
   const handleDateSelect = (date) => {
+   
     setSelectedDate(date);
     setSelectedSlot(null);
   };
@@ -140,6 +142,13 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
     setSelectedSlot(slot);
     setStep('payment');
   };
+  const formatDate = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
   const handleRazorpayPayment = async () => {
     if (typeof window === "undefined" || !window.Razorpay) {
@@ -197,7 +206,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
             const verify = await paymentAPI.verifyPayment(response);
             if (verify.success) {
               const booking = await bookingAPI.initiateBooking({
-                date: selectedDate,
+                date: formatDate(selectedDate),
                 startTime: selectedSlot.start,
                 endTime: selectedSlot.end,
                 price: CONSULTATION_PRICE,

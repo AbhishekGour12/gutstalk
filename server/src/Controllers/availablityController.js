@@ -17,12 +17,19 @@ const formatTime = (minutes) => {
 export const getAvailableSlots = async (req, res) => {
   try {
     const { date } = req.query;
-    if (!date) return res.status(400).json({ error: 'Date required' });
+  
 
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+   const startOfDay = new Date(date + "T00:00:00.000Z");
+const endOfDay = new Date(date + "T23:59:59.999Z");
 
-    const availability = await Availability.findOne({ date: targetDate, isActive: true });
+const availability = await Availability.findOne({
+  date: {
+    $gte: startOfDay,
+    $lte: endOfDay
+  },
+  isActive: true
+});
+
     if (!availability) return res.json({ slots: [] });
 
     const { startTime, endTime, slotDuration, breakBetweenSlots, bookedSlots = [] } = availability;
@@ -100,6 +107,7 @@ export const getAvailableDates = async (req, res) => {
   try {
     const availabilities = await Availability.find({ isActive: true }).select('date');
     const dates = availabilities.map(a => a.date);
+   
     res.json({ dates });
   } catch (error) {
     res.status(500).json({ error: error.message });

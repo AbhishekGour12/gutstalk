@@ -18,15 +18,31 @@ const formatPhone = (phone) => {
 export const initiateBooking = async (req, res) => {
   try {
     const { date, startTime, endTime, price, paymentDetails, userDetails } = req.body;
+    
     const userId = req.user?._id;
     let finalUserId = userId;
     let guestInfo = null;
     let formattedPhone = null;
-
+   
     // 1. Check if slot is already booked (by checking Availability's bookedSlots)
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
-    const availability = await Availability.findOne({ date: targetDate });
+  const [year, month, day] = date.split('-').map(Number);
+
+// Create exact UTC boundaries
+const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+
+const targetDate = startOfDay;
+
+
+const availability = await Availability.findOne({
+  date: {
+    $gte: startOfDay,
+    $lte: endOfDay
+  },
+  isActive: true
+});
+
+    
     if (availability) {
       const isSlotBooked = availability.bookedSlots.some(slot => slot.startTime === startTime);
       if (isSlotBooked) {
@@ -97,13 +113,21 @@ export const initiateBooking = async (req, res) => {
     await booking.save();
 
     // 5. Update Availability: mark this slot as booked
-    await Availability.findOneAndUpdate(
-      { date: targetDate },
-      { $push: { bookedSlots: { startTime, endTime, bookingId } } }
-    );
+   await Availability.findOneAndUpdate(
+  {
+    date: {
+      $gte: startOfDay,
+      $lte: endOfDay
+    }
+  },
+  {
+    $push: { bookedSlots: { startTime, endTime, bookingId } }
+  }
+);
+
     if (global.io) {
     global.io.emit('slot-booked', {
-    date: targetDate.toISOString().split('T')[0],
+    date: date,
     startTime: startTime,
     endTime: endTime,
     bookingId: bookingId

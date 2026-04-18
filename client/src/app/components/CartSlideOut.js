@@ -376,7 +376,7 @@ useEffect(() => {
       localStorage.removeItem("cart")
       setIsCartOpen(false);
       setTimeout(() =>{
-        router.push("/Orders")
+        router.push("/orders")
 
       },2000)
     } catch (err) {
