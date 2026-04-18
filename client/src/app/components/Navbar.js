@@ -129,7 +129,7 @@ const Navbar = () => {
                                 <div className="w-10 h-10 rounded-lg bg-[#F4FAFB] overflow-hidden flex-shrink-0">
                                   {product.imageUrls?.[0] && (
                                     <img
-                                      src={`${process.env.NEXT_PUBLIC_API}${product.imageUrls[0]}`}
+                                      src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${product.imageUrls[0]}`}
                                       alt={product.name}
                                       className="w-full h-full object-cover"
                                     />
