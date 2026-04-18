@@ -438,7 +438,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
             <div className="space-y-2">
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3 bg-[#F4FAFB] rounded-2xl px-3 py-2">
-                  <img src={item.product?.imageUrls?.[0] ? `${process.env.NEXT_PUBLIC_API}${item.product.imageUrls[0]}` : "/placeholder.png"} alt={item.product?.name || "Product"} className="w-12 h-12 rounded-xl object-cover" />
+                  <img src={item.product?.imageUrls?.[0] ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${item.product.imageUrls[0]}` : "/placeholder.png"} alt={item.product?.name || "Product"} className="w-12 h-12 rounded-xl object-cover" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#1A4D3E]">{item.product?.name || "Product"}</p>
                     <p className="text-xs text-[#64748B]">Qty: {item.quantity} × ₹{item.product?.price}</p>

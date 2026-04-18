@@ -352,7 +352,7 @@ export default function ProductManagement({ searchTerm }) {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#E8F4F7] flex items-center justify-center overflow-hidden">
                         {product.imageUrls?.[0] ? (
-                          <img src={`${process.env.NEXT_PUBLIC_API}${product.imageUrls[0]}`} alt={product.name} className="w-full h-full object-cover" />
+                          <img src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${product.imageUrls[0]}`} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
                           <FaImage className="text-[#18606D]" />
                         )}

@@ -23,7 +23,7 @@ const ProductCard = ({ product }) => {
         <div className="relative h-48 overflow-hidden bg-[#F4FAFB] flex-shrink-0">
           {product.imageUrls?.[0] ? (
             <Image
-              src={`${process.env.NEXT_PUBLIC_API}${product.imageUrls[0]}`}
+              src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${product.imageUrls[0]}`}
               alt={product.name}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"

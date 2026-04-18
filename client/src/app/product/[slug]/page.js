@@ -276,7 +276,7 @@ export default function ProductPage() {
             <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg border border-[#D9EEF2] aspect-square group">
               {mainImage && (
                 <Image
-                  src={`${process.env.NEXT_PUBLIC_API}${mainImage}`}
+                  src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${mainImage}`}
                   alt={product.name}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -307,7 +307,7 @@ export default function ProductPage() {
                     }`}
                   >
                     <Image
-                      src={`${process.env.NEXT_PUBLIC_API}${img}`}
+                      src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${img}`}
                       alt={`Thumb ${idx + 1}`}
                       width={80}
                       height={80}
