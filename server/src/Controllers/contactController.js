@@ -1,12 +1,12 @@
 // controllers/contactController.js
 import Contact from "../models/Contact.js";
 
-import sendEmail from "../utils/sendEmail.js";
+import sendEmail from "../services/email.js";
 
 // Submit contact form
 export const submitContactForm = async (req, res) => {
   try {
-    const { name, email, phone, subject, message, astrologerInterest } = req.body;
+    const { name, email, phone, subject, message} = req.body;
     console.log(name)
     // Simple validation
     if (!name || !email || !subject || !message) {
@@ -27,12 +27,11 @@ export const submitContactForm = async (req, res) => {
       phone: phone || "",
       subject,
       message,
-      astrologerInterest: astrologerInterest || false,
       userId: req.user?._id // if user is logged in
     });
     
     // Send notification emails (optional)
-    await sendNotificationEmails(contact);
+    await sendContactNotification(contact);
     
     res.status(201).json({
       success: true,
@@ -41,8 +40,7 @@ export const submitContactForm = async (req, res) => {
         id: contact._id,
         name: contact.name,
         email: contact.email,
-        subject: contact.subject,
-        astrologerInterest: contact.astrologerInterest
+        subject: contact.subject
       }
     });
     
@@ -195,6 +193,7 @@ export const updateContactStatus = async (req, res) => {
     });
   }
 };
+
 const sendReplyEmail = async (contact, replyMessage) => {
   try {
     const emailOptions = {
@@ -340,11 +339,11 @@ export const deleteContact = async (req, res) => {
 
 // Helper function to send emails (optional)
 // Helper function to send emails using your existing sendEmail middleware
-const sendNotificationEmails = async (contact) => {
+const sendContactNotification = async (contact) => {
   try {
     // Email to admin
     const adminMailOptions = {
-      to: process.env.ADMIN_EMAIL || "admin@myastrova.com",
+      to: process.env.ADMIN_EMAIL || "admin@guttalks.com",
       subject: `📩 New Contact Form Submission: ${contact.subject}`,
       html: `
         <!DOCTYPE html>
@@ -361,29 +360,29 @@ const sendNotificationEmails = async (contact) => {
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f8f9fa;
+            background-color: #F4FAFB;
         }
         .container {
             background-color: #ffffff;
-            border-radius: 10px;
+            border-radius: 16px;
             padding: 30px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
+            border: 1px solid #D9EEF2;
         }
         .header {
             text-align: center;
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 3px solid #C06014;
+            border-bottom: 3px solid #18606D;
         }
         .logo {
             font-size: 28px;
             font-weight: bold;
-            color: #C06014;
+            color: #18606D;
             margin-bottom: 10px;
         }
         .subtitle {
-            color: #666;
+            color: #64748B;
             font-size: 16px;
         }
         .content {
@@ -392,73 +391,55 @@ const sendNotificationEmails = async (contact) => {
         .field {
             margin-bottom: 15px;
             padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            border-left: 4px solid #00695C;
+            background-color: #F4FAFB;
+            border-radius: 12px;
+            border-left: 4px solid #18606D;
         }
         .field strong {
-            color: #003D33;
+            color: #1A4D3E;
             display: block;
             margin-bottom: 5px;
         }
         .field-value {
-            color: #555;
+            color: #475569;
         }
         .message-box {
-            background-color: #F7F3E9;
+            background-color: #F4FAFB;
             padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #B2C5B2;
+            border-radius: 12px;
+            border: 1px solid #D9EEF2;
             margin: 15px 0;
         }
-        .badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
+        .timestamp {
+            color: #94A3B8;
             font-size: 12px;
-            font-weight: bold;
-            margin: 5px 0;
-        }
-        .badge-yes {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .badge-no {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            text-align: right;
+            margin-top: 10px;
         }
         .footer {
             text-align: center;
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
+            border-top: 1px solid #D9EEF2;
+            color: #64748B;
             font-size: 14px;
         }
         .action-btn {
             display: inline-block;
-            background-color: #C06014;
+            background-color: #18606D;
             color: white;
             padding: 12px 30px;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 40px;
             font-weight: bold;
             margin-top: 20px;
-        }
-        .timestamp {
-            color: #888;
-            font-size: 12px;
-            text-align: right;
-            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">MyAstrova</div>
+            <div class="logo">GutTalks</div>
             <div class="subtitle">New Contact Form Submission Received</div>
         </div>
         
@@ -485,15 +466,6 @@ const sendNotificationEmails = async (contact) => {
                 <div class="field-value">${contact.subject.charAt(0).toUpperCase() + contact.subject.slice(1)}</div>
             </div>
             
-            <div class="field">
-                <strong>🔮 Astrologer Interest</strong>
-                <div class="field-value">
-                    <span class="badge ${contact.astrologerInterest ? 'badge-yes' : 'badge-no'}">
-                        ${contact.astrologerInterest ? '✓ Yes - Interested' : '✗ No'}
-                    </span>
-                </div>
-            </div>
-            
             <div class="message-box">
                 <strong>📝 Message:</strong>
                 <p>${contact.message}</p>
@@ -509,8 +481,8 @@ const sendNotificationEmails = async (contact) => {
         </div>
         
         <div class="footer">
-            <p>You can manage this contact from the admin panel:</p>
-            <a href="${process.env.ADMIN_URL || 'https://admin.myastrova.com'}/contacts" class="action-btn">
+            <p>You can view this contact in the admin panel:</p>
+            <a href="${process.env.ADMIN_URL || 'https://admin.guttalks.com'}/contacts" class="action-btn">
                 View in Admin Panel
             </a>
             <p style="margin-top: 20px;">
@@ -526,14 +498,14 @@ const sendNotificationEmails = async (contact) => {
     // Auto-reply to user
     const userMailOptions = {
       to: contact.email,
-      subject: '🙏 Thank You for Contacting MyAstrova',
+      subject: '🙏 Thank You for Contacting GutTalks',
       html: `
         <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thank You for Contacting MyAstrova</title>
+    <title>Thank You for Contacting GutTalks</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -542,34 +514,34 @@ const sendNotificationEmails = async (contact) => {
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f8f9fa;
+            background-color: #F4FAFB;
         }
         .container {
             background-color: #ffffff;
-            border-radius: 10px;
+            border-radius: 16px;
             padding: 30px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
+            border: 1px solid #D9EEF2;
         }
         .header {
             text-align: center;
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 3px solid #C06014;
+            border-bottom: 3px solid #18606D;
         }
         .logo {
             font-size: 32px;
             font-weight: bold;
-            color: #C06014;
+            color: #18606D;
             margin-bottom: 10px;
         }
         .welcome-text {
             font-size: 20px;
-            color: #003D33;
+            color: #1A4D3E;
             margin-bottom: 10px;
         }
         .subtitle {
-            color: #666;
+            color: #64748B;
             font-size: 16px;
         }
         .content {
@@ -578,47 +550,39 @@ const sendNotificationEmails = async (contact) => {
         .greeting {
             font-size: 18px;
             margin-bottom: 20px;
-            color: #444;
+            color: #1A4D3E;
         }
         .message-summary {
-            background-color: #F7F3E9;
+            background-color: #F4FAFB;
             padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #C06014;
+            border-radius: 12px;
+            border-left: 4px solid #18606D;
             margin: 20px 0;
         }
         .summary-title {
-            color: #C06014;
+            color: #18606D;
             font-weight: bold;
             margin-bottom: 10px;
         }
         .summary-item {
             margin-bottom: 10px;
         }
-        .astrologer-interest {
-            background-color: #e8f5e9;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #4caf50;
-            margin: 20px 0;
-            display: ${contact.astrologerInterest ? 'block' : 'none'};
-        }
         .contact-info {
-            background-color: #e3f2fd;
+            background-color: #E8F4F7;
             padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #2196f3;
+            border-radius: 12px;
+            border-left: 4px solid #2A7F8F;
             margin: 20px 0;
             text-align: center;
         }
         .phone-number {
             font-size: 24px;
             font-weight: bold;
-            color: #003D33;
+            color: #1A4D3E;
             margin: 10px 0;
         }
         .hours {
-            color: #666;
+            color: #64748B;
             font-size: 14px;
         }
         .next-steps {
@@ -632,7 +596,7 @@ const sendNotificationEmails = async (contact) => {
         .step-icon {
             width: 30px;
             height: 30px;
-            background-color: #C06014;
+            background-color: #18606D;
             color: white;
             border-radius: 50%;
             display: flex;
@@ -647,20 +611,20 @@ const sendNotificationEmails = async (contact) => {
         }
         .step-title {
             font-weight: bold;
-            color: #003D33;
+            color: #1A4D3E;
             margin-bottom: 5px;
         }
         .step-description {
-            color: #666;
+            color: #64748B;
         }
         .cta-button {
             display: block;
             width: 100%;
-            background-color: #C06014;
+            background-color: #18606D;
             color: white;
             text-align: center;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 40px;
             text-decoration: none;
             font-weight: bold;
             font-size: 16px;
@@ -668,14 +632,14 @@ const sendNotificationEmails = async (contact) => {
             transition: background-color 0.3s;
         }
         .cta-button:hover {
-            background-color: #D47C3A;
+            background-color: #2A7F8F;
         }
         .footer {
             text-align: center;
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
+            border-top: 1px solid #D9EEF2;
+            color: #64748B;
             font-size: 14px;
         }
         .social-links {
@@ -685,13 +649,13 @@ const sendNotificationEmails = async (contact) => {
             margin: 20px 0;
         }
         .social-link {
-            color: #C06014;
+            color: #18606D;
             text-decoration: none;
             font-weight: bold;
         }
         .disclaimer {
             font-size: 12px;
-            color: #999;
+            color: #94A3B8;
             margin-top: 20px;
             text-align: center;
         }
@@ -700,9 +664,9 @@ const sendNotificationEmails = async (contact) => {
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">MyAstrova</div>
+            <div class="logo">GutTalks</div>
             <div class="welcome-text">Thank You for Contacting Us!</div>
-            <div class="subtitle">Your spiritual journey begins here</div>
+            <div class="subtitle">Your journey to better gut health starts here</div>
         </div>
         
         <div class="content">
@@ -710,7 +674,7 @@ const sendNotificationEmails = async (contact) => {
                 Dear <strong>${contact.name}</strong>,
             </div>
             
-            <p>We have successfully received your message and truly appreciate you taking the time to reach out to us. Our dedicated team will review your inquiry and get back to you within <strong>24 hours</strong>.</p>
+            <p>We have successfully received your message and truly appreciate you reaching out. Our team will review your inquiry and get back to you within <strong>24 hours</strong>.</p>
             
             <div class="message-summary">
                 <div class="summary-title">📋 Your Message Summary:</div>
@@ -726,11 +690,6 @@ const sendNotificationEmails = async (contact) => {
                 </div>
             </div>
             
-            <div class="astrologer-interest" id="astrologerSection">
-                <strong>🎯 Astrologer Application Noted!</strong>
-                <p>We have registered your interest in joining as an astrologer. Our astrologer relations team will contact you with detailed information about the application process, requirements, and benefits within 2-3 business days.</p>
-            </div>
-            
             <div class="next-steps">
                 <div class="step-title">📅 What happens next?</div>
                 
@@ -738,7 +697,7 @@ const sendNotificationEmails = async (contact) => {
                     <div class="step-icon">1</div>
                     <div class="step-content">
                         <div class="step-title">Review Process</div>
-                        <div class="step-description">Our support team will review your message and assign it to the appropriate department.</div>
+                        <div class="step-description">Our gut health experts will review your message and assign it to the appropriate department.</div>
                     </div>
                 </div>
                 
@@ -762,27 +721,27 @@ const sendNotificationEmails = async (contact) => {
             <div class="contact-info">
                 <strong>📞 Need Immediate Assistance?</strong>
                 <div class="phone-number">+91 98765 43210</div>
-                <div class="hours">Available Monday-Saturday: 9 AM - 9 PM IST</div>
-                <p style="margin-top: 10px; font-size: 14px;">For registered users, 24/7 emergency spiritual support is available.</p>
+                <div class="hours">Available Monday-Saturday: 9 AM - 7 PM IST</div>
+                <p style="margin-top: 10px; font-size: 14px;">Our support team is here to help with any gut health queries.</p>
             </div>
             
-            <a href="${process.env.FRONTEND_URL || 'https://myastrova.com'}/astrologers" class="cta-button">
-                🔮 Explore Our Expert Astrologers
+            <a href="${process.env.FRONTEND_URL || 'https://guttalks.com'}/products" class="cta-button">
+                🍏 Explore Our Gut Health Programs
             </a>
         </div>
         
         <div class="footer">
             <div class="social-links">
-                <a href="${process.env.FRONTEND_URL || 'https://myastrova.com'}/contact" class="social-link">Contact Us</a>
-                <a href="${process.env.FRONTEND_URL || 'https://myastrova.com'}/faq" class="social-link">FAQ</a>
-                <a href="${process.env.FRONTEND_URL || 'https://myastrova.com'}/privacy" class="social-link">Privacy Policy</a>
-                <a href="${process.env.FRONTEND_URL || 'https://myastrova.com'}/terms" class="social-link">Terms</a>
+                <a href="${process.env.FRONTEND_URL || 'https://guttalks.com'}/contact" class="social-link">Contact Us</a>
+                <a href="${process.env.FRONTEND_URL || 'https://guttalks.com'}/faq" class="social-link">FAQ</a>
+                <a href="${process.env.FRONTEND_URL || 'https://guttalks.com'}/privacy" class="social-link">Privacy Policy</a>
+                <a href="${process.env.FRONTEND_URL || 'https://guttalks.com'}/terms" class="social-link">Terms</a>
             </div>
             
             <p>
                 Best regards,<br>
-                <strong>The MyAstrova Team</strong><br>
-                <em>Guiding your spiritual journey with celestial wisdom</em>
+                <strong>The GutTalks Team</strong><br>
+                <em>Your partner in digestive wellness</em>
             </p>
             
             <div class="disclaimer">
@@ -791,32 +750,16 @@ const sendNotificationEmails = async (contact) => {
             </div>
         </div>
     </div>
-    
-    <script>
-        // Show astrologer interest section if applicable
-        const astrologerInterest = ${contact.astrologerInterest};
-        if (astrologerInterest) {
-            document.getElementById('astrologerSection').style.display = 'block';
-        }
-    </script>
 </body>
 </html>
       `
     };
     
-    // Import your existing sendEmail middleware
-   
-    // Send emails using your existing middleware
+    // Send emails using your existing email middleware
+    await sendEmail(adminMailOptions);
+    await sendEmail(userMailOptions);
     
-      // Send to admin
-      await sendEmail(adminMailOptions);
-      
-      // Send auto-reply to user
-      await sendEmail(userMailOptions);
-      
-      console.log(`✅ Contact emails sent to admin and ${contact.email}`);
-   
-    
+    console.log(`✅ Contact emails sent to admin and ${contact.email}`);
     
   } catch (error) {
     console.error("Email sending error:", error);

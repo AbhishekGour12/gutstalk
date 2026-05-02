@@ -1,9 +1,9 @@
 // app/product/[slug]/page.jsx
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import {
   Star,
   Clock,
@@ -30,13 +30,24 @@ import {
   Zap,
   MapPin,
   ThumbsUp,
+  Droplets,
+  Beaker,
+  Microscope,
+  Truck,
+  FileCheck,
 } from "lucide-react";
+// For rating & like buttons
+import { FaHeart, FaStar } from "react-icons/fa";
+
 import { ProductApi } from "../../lib/ProductApi";
-import {useCart} from "../../context/CartContext";
+import { useCart } from "../../context/CartContext";
 import ScheduleCallModal from "../../components/ScheduleCallModal";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import useCheckLogin from "../../useCheckLogin"; // adjust path if needed
+
 // -------------------- Helper Components --------------------
 
-// Skeleton Loader
 const SkeletonLoader = () => (
   <div className="min-h-screen bg-gradient-to-br from-[#F4FAFB] via-white to-[#E8F4F7]">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -60,7 +71,6 @@ const SkeletonLoader = () => (
   </div>
 );
 
-// Star Rating Component
 const StarRating = ({ rating, reviewCount, size = 16 }) => (
   <div className="flex items-center gap-2">
     <div className="flex gap-0.5">
@@ -82,7 +92,6 @@ const StarRating = ({ rating, reviewCount, size = 16 }) => (
   </div>
 );
 
-// Quantity Selector
 const QuantitySelector = ({ quantity, setQuantity, stock }) => (
   <div className="flex items-center gap-3 border border-[#D9EEF2] rounded-xl px-4 py-2 bg-white shadow-sm">
     <button
@@ -101,7 +110,13 @@ const QuantitySelector = ({ quantity, setQuantity, stock }) => (
   </div>
 );
 
-// Auto icon mapping for benefits
+const extractHighlights = (description) => {
+  if (!description) return [];
+  const parts = description.split("|").map((p) => p.trim());
+  return parts.filter((p) => p.length > 0 && p.length < 100);
+};
+
+// Icon mapping for benefits
 const getBenefitIcon = (title) => {
   const lower = title.toLowerCase();
   if (lower.includes("diagnosis") || lower.includes("severity")) return <Search size={20} />;
@@ -113,20 +128,12 @@ const getBenefitIcon = (title) => {
   return <Zap size={20} />;
 };
 
-// Auto icon for What to Expect
 const getWhatToExpectIcon = (title) => {
   const lower = title.toLowerCase();
   if (lower.includes("consult")) return <Users size={20} />;
   if (lower.includes("solution")) return <CheckCircle size={20} />;
   if (lower.includes("eliminate")) return <Shield size={20} />;
   return <ThumbsUp size={20} />;
-};
-
-// Extract highlights from description (split by "|")
-const extractHighlights = (description) => {
-  if (!description) return [];
-  const parts = description.split("|").map((p) => p.trim());
-  return parts.filter((p) => p.length > 0 && p.length < 100);
 };
 
 // -------------------- Main Component --------------------
@@ -136,171 +143,227 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [mainImage, setMainImage] = useState("");
-  const [toast, setToast] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const {addToCart} = useCart();
-  const heroRef = useRef(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const { addToCart } = useCart();
+  const user = useSelector((state) => state.auth.user);
+  const checkLogin = useCheckLogin();
 
-  // Mock reviews with rating breakdown
-  const mockReviews = [
-    {
-      name: "Max Kushnir",
-      role: "Chief Scientist",
-      rating: 5,
-      comment:
-        "I had been experiencing frequent diarrhoea and felt lost. My session was so helpful – she pinpointed possible triggers and gave me the right guidance. I feel more in control now.",
-    },
-    {
-      name: "Sunita Agarwal",
-      rating: 5,
-      comment:
-        "My low energy and sluggish digestion were affecting my work. Gargi’s insights were invaluable—she suggested minor dietary shifts that have proven efficient.",
-    },
-    {
-      name: "Reshma Choudhary",
-      rating: 5,
-      comment:
-        "Indigestion and constipation were my biggest struggles. Gargi helped me understand why and provided a structured plan with simple diet changes.",
-    },
-    {
-      name: "Harinder Singh",
-      rating: 5,
-      comment:
-        "Bloating had become a daily struggle. My consultation was a game-changer! He explained the root cause and gave me a solid plan.",
-    },
-    {
-      name: "Gulshan Mirza",
-      rating: 5,
-      comment:
-        "Fatigue and gut issues had me feeling low. The consultation helped me understand the root cause, and food suggestions were easy to follow.",
-    },
-  ];
+  // ----- rating & review state -----
+  const [reviews, setReviews] = useState([]);
+  const [ratingSummary, setRatingSummary] = useState({
+    avg: 0,
+    count: 0,
+    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+  });
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [showRatingForm, setShowRatingForm] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
 
-  // Rating breakdown (mock)
-  const ratingBreakdown = {
-    5: 68,
-    4: 20,
-    3: 8,
-    2: 3,
-    1: 1,
-  };
+  // Detect if product is a test (SMT/GMT)
+  const isTestProduct = product?.name && /smt|gmt/i.test(product.name);
+  const isConsultation = product?.productType === "consultation";
+  const highlights = product ? extractHighlights(product.description) : [];
+  const hasBenefits = product?.benefits && product.benefits.length > 0;
 
-  useEffect(() => {
-    if (slug) fetchProduct();
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [slug]);
-
-  const handleScroll = () => {
-    if (window.scrollY > 300) setShowScrollTop(true);
-    else setShowScrollTop(false);
-  };
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const fetchProduct = async () => {
+  // ------------------------------------------------------------------
+  // fetch product + ratings + likes
+  // ------------------------------------------------------------------
+  const fetchProductData = useCallback(async () => {
+    if (!slug) return;
     setLoading(true);
     try {
-      const res = await ProductApi.getProductBySlug(slug);
-      setProduct(res.product);
-      if (res.product.imageUrls?.length) setMainImage(res.product.imageUrls[0]);
-    } catch (error) {
-      console.error("Error fetching product:", error);
+      const productRes = await ProductApi.getProductBySlug(slug);
+      const prod = productRes.product;
+      setProduct(prod);
+      if (prod.imageUrls?.length) setMainImage(prod.imageUrls[0]);
+
+      const productId = prod._id;
+      const ratingsData = await ProductApi.getProductRatings(productId);
+      let reviewsList = Array.isArray(ratingsData) ? ratingsData : ratingsData?.reviews || [];
+      setReviews(reviewsList);
+     
+
+      const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      reviewsList.forEach((r) => {
+        if (breakdown[r.rating] !== undefined) breakdown[r.rating] += 1;
+      });
+      const count = reviewsList.length;
+      const avg = count === 0 ? 0 : reviewsList.reduce((sum, r) => sum + r.rating, 0) / count;
+      setRatingSummary({ avg: avg.toFixed(1), count, breakdown });
+
+      const likesRes = await ProductApi.getProductLikesCount(productId);
+      setLikesCount(likesRes.count || 0);
+      if (user) {
+        const liked = await ProductApi.checkUserInterest(productId);
+        setIsLiked(!!liked?.isLiked);
+      } else {
+        setIsLiked(false);
+      }
+    } catch (err) {
+      console.error("Error fetching product data:", err);
+      toast.error("Failed to load product");
     } finally {
       setLoading(false);
     }
+  }, [slug, user]);
+
+  useEffect(() => {
+    fetchProductData();
+  }, [fetchProductData]);
+
+  // ------------------------------------------------------------------
+  // rating & like handlers
+  // ------------------------------------------------------------------
+  const handleToggleLike = async () => {
+    if (!checkLogin()) return;
+    if (!user) return;
+    const productId = product._id;
+    try {
+      if (isLiked) {
+        await ProductApi.removeUserInterest(productId);
+        setIsLiked(false);
+        setLikesCount((c) => Math.max(0, c - 1));
+        toast.success("Removed from wishlist");
+      } else {
+        await ProductApi.addUserInterest(productId);
+        setIsLiked(true);
+        setLikesCount((c) => c + 1);
+        toast.success("Added to wishlist");
+      }
+    } catch (err) {
+      toast.error(err.message || "Something went wrong");
+    }
   };
 
-  
-
-  const buyNow = () => alert("Proceed to checkout");
-  const chooseSlot = () => alert("Booking page – select your consultation slot");
-  const toggleWishlist = () => setIsWishlisted(!isWishlisted);
- const shareProduct = async () => {
-  const shareUrl = `${window.location.origin}/product/${slug}`;
-  
-  const shareData = {
-    title: `${product?.name} | GutsTalks`,
-    text: `✨ ${product?.name} ✨\n⭐ ${product?.rating}★ \n💰 ₹${product?.discountedPrice || product?.price}\n📦 Free Shipping`,
-    url: shareUrl,
+  const handleSubmitRating = async (e) => {
+    e.preventDefault();
+    if (!checkLogin()) {
+      toast.error("Please login to submit review");
+      return;
+    }
+    if (!rating) return toast.error("Please select rating");
+    try {
+      await ProductApi.submitRating({
+        productId: product._id,
+        rating: Number(rating),
+        review: reviewText,
+      });
+      
+      let reviewsList = Array.isArray(ratingsData) ? ratingsData : ratingsData?.reviews || [];
+      setReviews(reviewsList);
+      const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      reviewsList.forEach((r) => {
+        if (breakdown[r.rating] !== undefined) breakdown[r.rating] += 1;
+      });
+      const count = reviewsList.length;
+      const avg = count === 0 ? 0 : reviewsList.reduce((sum, r) => sum + r.rating, 0) / count;
+      setRatingSummary({ avg: avg.toFixed(1), count, breakdown });
+      setShowRatingForm(false);
+      setRating(0);
+      setReviewText("");
+    } catch (err) {
+      toast.error(err.message || "Failed to submit review");
+    }
   };
 
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
+  // ------------------------------------------------------------------
+  // cart / buy / share etc.
+  // ------------------------------------------------------------------
+  const buyNow = () => {
+    if (!product) return;
+    if (!isConsultation) {
+      addToCart(product._id, quantity);
+      window.location.href = "/checkout";
     } else {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Product link copied! The image will appear when you paste it in WhatsApp, Facebook, etc.");
+      setShowScheduleModal(true);
     }
-  } catch (err) {
-    if (err.name !== 'AbortError') {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Link copied to clipboard!");
-    }
-  }
-};
+  };
+  const toggleWishlist = handleToggleLike;
 
+  const shareProduct = async () => {
+    const shareUrl = `${window.location.origin}/product/${slug}`;
+    const shareData = {
+      title: `${product?.name} | GutTalks`,
+      text: `✨ ${product?.name} ✨\n⭐ ${product?.rating}★ \n💰 ₹${product?.salePrice}\n📦 Free Shipping`,
+      url: shareUrl,
+    };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied!");
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied!");
+      }
+    }
+  };
   const whatsappShare = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(window.location.href)}`, "_blank");
   };
 
-  if (loading) return <SkeletonLoader />;
-  if (!product) return <div className="min-h-screen flex items-center justify-center">Product not found</div>;
-
-  const isConsultation = product.productType === "consultation";
-  const highlights = extractHighlights(product.description);
-  const hasBenefits = product.benefits && product.benefits.length > 0;
-// ADD THIS FUNCTION
   const HandleAddToCart = async () => {
     if (!product || isConsultation) return;
     await addToCart(product._id, quantity);
-    setToast(`${product.name} added to cart`);
-    setTimeout(() => setToast(null), 2500);
+    setToastMsg(`${product.name} added to cart`);
+    setTimeout(() => setToastMsg(null), 2500);
   };
+
+  const handleScroll = () => setShowScrollTop(window.scrollY > 300);
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  if (loading) return <SkeletonLoader />;
+  if (!product) return <div className="min-h-screen flex items-center justify-center">Product not found</div>;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F4FAFB] via-white to-[#E8F4F7]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-        {/* ========== HERO SECTION ========== */}
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 mb-16">
-          {/* Left: Image Gallery */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg border border-[#D9EEF2] aspect-square group">
-              {mainImage && (
-                <Image
-                  src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${mainImage}`}
-                  alt={product.name}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  unoptimized
-                />
-              )}
-              {/* Floating discount badge */}
-              <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12">
+        {/* Hero Section - Fully Responsive */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 lg:gap-12 mb-12 md:mb-16">
+          {/* Left: Image Gallery + Rating Breakdown */}
+          <div className="space-y-4">
+            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg border border-[#D9EEF2] group aspect-square max-w-full">
+              <Image
+                src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${mainImage}`}
+                alt={product.name}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                unoptimized
+              />
+              <div className="absolute top-3 left-3 backdrop-blur-md bg-red-500/90 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
                 -{Math.round(((product.originalPrice - product.salePrice) / product.originalPrice) * 100)}%
               </div>
-              {/* Floating duration badge for consultation */}
+              {isTestProduct && (
+                <div className="absolute top-3 right-3 backdrop-blur-md bg-[#18606D]/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold shadow-md flex items-center gap-1">
+                  <Beaker size={10} /> Gut Health Test
+                </div>
+              )}
               {isConsultation && (
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur rounded-full px-3 py-1 text-xs font-semibold text-[#18606D] shadow-md flex items-center gap-1">
-                  <Clock size={12} /> {product.consultationDuration}
+                <div className="absolute top-3 right-3 backdrop-blur-md bg-white/90 text-[#18606D] px-2 py-0.5 rounded-full text-xs font-semibold shadow-md flex items-center gap-1">
+                  <Clock size={10} /> {product.consultationDuration}
                 </div>
               )}
             </div>
+
             {product.imageUrls?.length > 1 && (
-              <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                 {product.imageUrls.map((img, idx) => (
                   <button
                     key={idx}
                     onMouseOver={() => setMainImage(img)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
                       mainImage === img
                         ? "border-[#18606D] shadow-md"
                         : "border-[#D9EEF2] opacity-70 hover:opacity-100"
@@ -311,26 +374,71 @@ export default function ProductPage() {
                       alt={`Thumb ${idx + 1}`}
                       width={80}
                       height={80}
-                      className="object-cover"
+                      className="object-cover w-full h-full"
                       unoptimized
                     />
                   </button>
                 ))}
               </div>
             )}
-          </motion.div>
 
-          {/* Right: Product Info (Sticky on desktop) */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="md:sticky md:top-24 h-fit"
-          >
-            <div className="flex justify-between items-start">
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0F172A]">{product.name}</h1>
+            {/* Rating Breakdown - Responsive */}
+            <div className="bg-white rounded-xl p-4 mt-4 border border-[#D9EEF2] shadow-sm">
+              <h3 className="text-sm md:text-md font-bold text-[#1A4D3E] mb-3">Rating Overview</h3>
+              {Object.entries(ratingSummary.breakdown)
+                .sort((a, b) => Number(b[0]) - Number(a[0]))
+                .map(([star, count]) => {
+                  const percent = ratingSummary.count ? Math.round((count / ratingSummary.count) * 100) : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-2 mb-2">
+                      <span className="w-6 text-sm text-[#1A4D3E] font-semibold">{star}★</span>
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${percent}%` }} />
+                      </div>
+                      <span className="w-8 text-xs text-[#64748B]">{percent}%</span>
+                    </div>
+                  );
+                })}
+              <div className="text-xs text-[#64748B] mt-2 text-center">
+                Based on {ratingSummary.count} reviews
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Product Info - Responsive typography */}
+          <div className="space-y-4">
+            {isTestProduct && (
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 text-xs bg-[#E8F4F7] text-[#18606D] px-2 py-1 rounded-full">
+                  <Truck size={12} /> Home sample
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs bg-[#E8F4F7] text-[#18606D] px-2 py-1 rounded-full">
+                  <Microscope size={12} /> NABL Lab
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs bg-[#E8F4F7] text-[#18606D] px-2 py-1 rounded-full">
+                  <Users size={12} /> Expert consultation
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-start flex-wrap gap-2">
+              <div>
+                {isTestProduct && (
+                  <span className="text-xs font-semibold text-[#18606D] bg-[#E8F4F7] px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    {product.name.includes("SMT") ? "Basic Screening" : "Advanced Analysis"}
+                  </span>
+                )}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#0F172A] mt-2 break-words">
+                  {product.name}
+                </h1>
+              </div>
               <div className="flex gap-2">
-               
+                <button
+                  onClick={toggleWishlist}
+                  className="p-2 rounded-full bg-white shadow-md border border-[#D9EEF2] hover:shadow-lg transition"
+                >
+                  <FaHeart className={`text-xl ${isLiked ? "text-red-500 fill-red-500" : "text-[#18606D]"}`} />
+                </button>
                 <button
                   onClick={shareProduct}
                   className="p-2 rounded-full bg-white shadow-md border border-[#D9EEF2] hover:shadow-lg transition"
@@ -339,30 +447,38 @@ export default function ProductPage() {
                 </button>
               </div>
             </div>
-            <p className="text-[#18606D] text-sm mt-2">{product.shortDescription}</p>
-            <div className="mt-3">
-              <StarRating rating={product.rating} reviewCount={product.reviewCount} />
+
+            <p className="text-sm text-[#64748B]">{product.shortDescription}</p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <StarRating rating={ratingSummary.avg} reviewCount={ratingSummary.count} />
+              <span className="text-sm text-[#18606D]">❤️ {likesCount} likes</span>
             </div>
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-[#18606D]">₹{product.salePrice}</span>
+
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-2xl sm:text-3xl font-bold text-[#18606D]">₹{product.salePrice}</span>
               <span className="text-sm text-[#94A3B8] line-through">₹{product.originalPrice}</span>
             </div>
-            <p className="text-xs text-[#64748B] mt-1">{product.taxNote}</p>
+            <p className="text-xs text-[#64748B]">{product.taxNote}</p>
 
-            {/* Highlights chips from description */}
+            {product.description && (
+              <div className="text-sm text-[#475569] leading-relaxed">
+                <p>{product.description}</p>
+              </div>
+            )}
+
             {highlights.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {highlights.map((h, idx) => (
-                  <span key={idx} className="bg-[#E8F4F7] text-[#18606D] px-3 py-1 rounded-full text-xs font-medium">
+                  <span key={idx} className="bg-[#E8F4F7] text-[#18606D] px-2 py-1 rounded-full text-xs font-medium">
                     {h}
                   </span>
                 ))}
               </div>
             )}
 
-            {/* Consultation specific info */}
             {isConsultation && (
-              <div className="mt-4 space-y-2 bg-[#F4FAFB] p-4 rounded-xl">
+              <div className="space-y-2 bg-[#F4FAFB] p-4 rounded-xl">
                 <div className="flex items-center gap-2 text-[#1A4D3E]">
                   <Clock size={18} className="text-[#18606D]" />
                   <span className="text-sm">Duration: {product.consultationDuration}</span>
@@ -374,33 +490,27 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Program specific info */}
             {!isConsultation && (
-              <div className="mt-4">
+              <div>
                 <p className="text-sm text-[#64748B]">
                   Stock:{" "}
-                  <span
-                    className={`font-semibold ${
-                      product.stock > 0 ? "text-green-600" : "text-red-500"
-                    }`}
-                  >
+                  <span className={`font-semibold ${product.stock > 0 ? "text-green-600" : "text-red-500"}`}>
                     {product.stock > 0 ? `${product.stock} units` : "Out of stock"}
                   </span>
                 </p>
                 {product.stock > 0 && product.stock < 10 && (
                   <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> Only {product.stock} left in stock – order soon
+                    <AlertCircle size={12} /> Only {product.stock} left – order soon
                   </p>
                 )}
               </div>
             )}
 
-            {/* CTA Buttons */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               {isConsultation ? (
                 <button
                   onClick={() => setShowScheduleModal(true)}
-                  className="flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition transform hover:scale-[1.02]"
+                  className="w-full sm:flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-xl hover:scale-[1.02] transition-all"
                 >
                   <Calendar size={18} /> Choose Your Slot
                 </button>
@@ -409,68 +519,65 @@ export default function ProductPage() {
                   <QuantitySelector quantity={quantity} setQuantity={setQuantity} stock={product.stock} />
                   <button
                     onClick={HandleAddToCart}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-xl hover:scale-[1.02] transition-all"
                   >
                     <ShoppingCart size={18} /> Add to Cart
                   </button>
                   <button
-                    onClick={HandleAddToCart}
-                    className="py-3 px-6 border border-[#18606D] text-[#18606D] rounded-xl font-semibold hover:bg-[#18606D] hover:text-white transition"
+                    onClick={buyNow}
+                    className="py-3 px-6 border border-[#18606D] text-[#18606D] rounded-xl font-semibold hover:bg-[#18606D] hover:text-white transition-all"
                   >
                     Buy Now
                   </button>
                 </>
               )}
             </div>
-            {isConsultation && (
-              <p className="text-xs text-[#64748B] mt-3 text-center">Limited slots available today</p>
-            )}
-          </motion.div>
+            {isConsultation && <p className="text-xs text-[#64748B] text-center">Limited slots available today</p>}
+          </div>
         </div>
 
-        {/* ========== BENEFITS / KEY HIGHLIGHTS SECTION ========== */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-[#0F172A] mb-8 text-center">
+        {/* Benefits & Highlights */}
+        <div className="mb-12 md:mb-16">
+          <h2 className="text-xl md:text-2xl font-bold text-[#0F172A] mb-6 md:mb-8 text-center">
             {hasBenefits ? "Why Choose This Program?" : "Key Highlights"}
           </h2>
-          {hasBenefits ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {product.benefits.map((benefit, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -5, boxShadow: "0 20px 25px -12px rgba(0,0,0,0.1)" }}
-                  className="bg-white rounded-xl p-5 shadow-md border border-[#D9EEF2] transition"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#E8F4F7] flex items-center justify-center mb-3 text-[#18606D]">
-                    {getBenefitIcon(benefit)}
-                  </div>
-                  <h3 className="font-bold text-[#1A4D3E]">{benefit}</h3>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap justify-center gap-3">
-              {highlights.map((h, idx) => (
-                <span
-                  key={idx}
-                  className="bg-white border border-[#D9EEF2] px-5 py-2 rounded-full text-sm font-medium text-[#18606D] shadow-sm"
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {hasBenefits
+              ? product.benefits.map((benefit, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    viewport={{ once: true }}
+                    whileHover={{ y: -5, boxShadow: "0 20px 25px -12px rgba(0,0,0,0.1)" }}
+                    className="bg-white rounded-xl p-4 shadow-md border border-[#D9EEF2] transition"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#E8F4F7] flex items-center justify-center mb-3 text-[#18606D]">
+                      {getBenefitIcon(benefit)}
+                    </div>
+                    <h3 className="font-bold text-[#1A4D3E] text-sm md:text-base">{benefit}</h3>
+                  </motion.div>
+                ))
+              : highlights.map((h, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-white rounded-xl p-4 shadow-md border border-[#D9EEF2] text-center"
+                  >
+                    <p className="text-[#18606D] font-medium text-sm">{h}</p>
+                  </motion.div>
+                ))}
+          </div>
         </div>
 
-        {/* ========== WHAT TO EXPECT SECTION (Premium) ========== */}
+        {/* What to Expect */}
         {product.whatToExpect?.length > 0 && (
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold text-[#0F172A] mb-8 text-center">What to Expect</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mb-12 md:mb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-[#0F172A] mb-6 md:mb-8 text-center">What to Expect</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {product.whatToExpect.map((item, idx) => (
                 <motion.div
                   key={idx}
@@ -479,32 +586,32 @@ export default function ProductPage() {
                   transition={{ delay: idx * 0.1 }}
                   viewport={{ once: true }}
                   whileHover={{ y: -8, boxShadow: "0 20px 25px -12px rgba(24,96,109,0.2)" }}
-                  className="bg-gradient-to-br from-white to-[#F4FAFB] rounded-2xl p-6 text-center shadow-md border border-[#D9EEF2]"
+                  className="bg-white rounded-2xl p-5 text-center shadow-md border border-[#D9EEF2]"
                 >
-                  <div className="relative w-16 h-16 mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#18606D] to-[#2A7F8F] opacity-10"></div>
-                    <div className="relative w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center text-[#18606D] border border-[#D9EEF2]">
+                  <div className="relative w-14 h-14 mx-auto mb-3">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#18606D] to-[#2A7F8F] opacity-10" />
+                    <div className="relative w-14 h-14 rounded-full bg-white shadow-md flex items-center justify-center text-[#18606D] border border-[#D9EEF2]">
                       {getWhatToExpectIcon(item.title)}
                     </div>
-                    <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#18606D] text-white text-xs font-bold flex items-center justify-center shadow-md">
+                    <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#18606D] text-white text-xs font-bold flex items-center justify-center shadow-md">
                       {String(idx + 1).padStart(2, "0")}
                     </div>
                   </div>
-                  <h3 className="font-bold text-[#1A4D3E]">{item.title}</h3>
-                  <p className="text-sm text-[#64748B] mt-2">{item.description}</p>
+                  <h3 className="font-bold text-[#1A4D3E] text-md mb-1">{item.title}</h3>
+                  <p className="text-sm text-[#64748B]">{item.description}</p>
                 </motion.div>
               ))}
             </div>
           </div>
         )}
 
-        {/* ========== EXPERT SECTION (only for consultation) ========== */}
+        {/* Expert Section (Consultation Only) */}
         {isConsultation && (
-          <div className="mb-16">
-            <div className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] rounded-2xl p-8 text-white shadow-xl">
+          <div className="mb-12 md:mb-16">
+            <div className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] rounded-2xl p-6 md:p-8 text-white shadow-xl">
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="relative">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+                  <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                     <Image
                       src="https://randomuser.me/api/portraits/men/32.jpg"
                       alt={product.expertName || "Expert"}
@@ -517,17 +624,15 @@ export default function ProductPage() {
                     <Award size={16} className="text-white" />
                   </div>
                 </div>
-                <div className="text-center md:text-left">
-                  <h3 className="text-2xl font-bold">{product.expertName || "Senior Gut Health Expert"}</h3>
-                  <p className="text-[#CFE8EC]">Certified Gut Health Specialist</p>
+                <div className="text-center md:text-left flex-1">
+                  <h3 className="text-xl md:text-2xl font-bold">{product.expertName || "Senior Gut Health Expert"}</h3>
+                  <p className="text-[#CFE8EC] text-sm">Certified Gut Health Specialist</p>
                   <p className="mt-2 text-sm opacity-90">
-                    Over 10+ years of experience in clinical nutrition and gut microbiome research, helping thousands
-                    reverse chronic digestive issues.
+                    Over 10+ years of experience in clinical nutrition and gut microbiome research.
                   </p>
-                  <div className="mt-3 flex items-center gap-2 text-sm">
-                    <CheckCircle size={14} /> Verified Expert
-                    <span className="mx-1">•</span>
-                    <ThumbsUp size={14} /> 98% Patient Satisfaction
+                  <div className="mt-3 flex flex-wrap justify-center md:justify-start gap-3 text-sm">
+                    <span className="flex items-center gap-1"><CheckCircle size={14} /> Verified Expert</span>
+                    <span className="flex items-center gap-1"><ThumbsUp size={14} /> 98% Satisfaction</span>
                   </div>
                 </div>
               </div>
@@ -535,89 +640,109 @@ export default function ProductPage() {
           </div>
         )}
 
-        {/* ========== REVIEWS SECTION with Rating Breakdown ========== */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Customer Reviews</h2>
-          <div className="bg-white rounded-2xl shadow-md border border-[#D9EEF2] p-6">
-            <div className="flex flex-col md:flex-row gap-8">
-              {/* Left: Rating Summary */}
-              <div className="md:w-1/3 text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-2">
-                  <div className="text-5xl font-bold text-[#1A4D3E]">{product.rating}</div>
-                  <div>
+        {/* Rating Form Section - White background */}
+        <div className="mb-12 md:mb-16 bg-white rounded-2xl shadow-md border border-[#D9EEF2] p-5 md:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 className="text-xl md:text-2xl font-bold text-[#1A4D3E]">Share Your Experience</h2>
+            {!showRatingForm && (
+              <button
+                onClick={() => {
+                  if (checkLogin()) setShowRatingForm(true);
+                  else toast.error("Please login to write review");
+                }}
+                className="px-5 py-2 bg-[#18606D] text-white rounded-xl font-semibold hover:bg-[#2A7F8F] transition text-sm"
+              >
+                Write a Review
+              </button>
+            )}
+          </div>
+
+          {showRatingForm && (
+            <motion.form
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              onSubmit={handleSubmitRating}
+              className="space-y-5"
+            >
+              <div>
+                <label className="block text-sm font-medium text-[#1A4D3E] mb-2">Your Rating *</label>
+                <div className="flex gap-2 text-2xl">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none transition-transform hover:scale-110"
+                    >
+                      <Star className={`w-6 h-6 ${star <= rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1A4D3E] mb-2">Your Review</label>
+                <textarea
+                  rows={4}
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                  className="w-full p-3 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none text-sm"
+                  placeholder="Share your thoughts about this product..."
+                />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={rating === 0}
+                  className="px-6 py-2 bg-[#18606D] text-white rounded-xl font-semibold disabled:opacity-50 hover:bg-[#2A7F8F] transition text-sm"
+                >
+                  Submit Review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRatingForm(false)}
+                  className="px-6 py-2 border border-[#D9EEF2] text-[#1A4D3E] rounded-xl hover:bg-[#F4FAFB] transition text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </div>
+
+        {/* Customer Reviews List - White background, fixed height overflow */}
+        <div className="mb-12 md:mb-16 bg-white rounded-2xl shadow-md border border-[#D9EEF2] p-5 md:p-6">
+          <h2 className="text-xl md:text-2xl font-bold text-[#1A4D3E] mb-4">Customer Reviews ({ratingSummary.count})</h2>
+          {reviews.length === 0 ? (
+            <p className="text-[#64748B] italic text-center py-6">No reviews yet. Be the first to share your experience!</p>
+          ) : (
+            <div className="space-y-5 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+              {reviews.map((r) => (
+                <div key={r._id} className="border-b border-[#D9EEF2] pb-4 last:border-0">
+                  <div className="flex flex-wrap justify-between items-start gap-2 mb-1">
+                    <span className="font-semibold text-[#1A4D3E] text-sm">{r.userId?.username ||r.userId?.name || "Anonymous"}</span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          size={20}
-                          className={`${
-                            star <= Math.floor(product.rating)
-                              ? "fill-amber-400 text-amber-400"
-                              : "text-gray-300"
-                          }`}
+                          size={14}
+                          className={star <= r.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}
                         />
                       ))}
                     </div>
-                    <p className="text-sm text-[#64748B]">Based on {product.reviewCount} reviews</p>
                   </div>
+                  {r.review && <p className="text-sm text-[#475569] mt-1">{r.review}</p>}
+                  <p className="text-xs text-[#64748B] mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
                 </div>
-                {/* Rating breakdown bars */}
-                <div className="mt-6 space-y-2">
-                  {[5, 4, 3, 2, 1].map((star) => (
-                    <div key={star} className="flex items-center gap-2 text-sm">
-                      <span className="w-8">{star} ★</span>
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-amber-400 rounded-full"
-                          style={{ width: `${ratingBreakdown[star]}%` }}
-                        ></div>
-                      </div>
-                      <span className="w-10 text-[#64748B]">{ratingBreakdown[star]}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Right: Review List */}
-              <div className="md:w-2/3 space-y-5 max-h-96 overflow-y-auto pr-2">
-                {mockReviews.slice(0, 3).map((review, idx) => (
-                  <div key={idx} className="border-b border-[#D9EEF2] pb-4 last:border-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-8 h-8 rounded-full bg-[#E8F4F7] flex items-center justify-center text-[#18606D] font-bold">
-                        {review.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#1A4D3E]">{review.name}</p>
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              size={12}
-                              className={`${
-                                star <= review.rating
-                                  ? "fill-amber-400 text-amber-400"
-                                  : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-[#475569] mt-2">{review.comment}</p>
-                  </div>
-                ))}
-                <button className="text-[#18606D] font-semibold text-sm mt-2 block">Read all reviews →</button>
-              </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* ========== FAQ SECTION ========== */}
+        {/* FAQ Section */}
         {product.faqs?.length > 0 && (
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-4 max-w-3xl mx-auto">
+          <div className="mb-12 md:mb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-[#0F172A] mb-6 text-center">Frequently Asked Questions</h2>
+            <div className="space-y-3 max-w-3xl mx-auto">
               {product.faqs.map((faq, idx) => (
                 <div
                   key={idx}
@@ -625,9 +750,9 @@ export default function ProductPage() {
                 >
                   <button
                     onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                    className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-[#F4FAFB] transition"
+                    className="w-full px-5 py-3 text-left flex justify-between items-center hover:bg-[#F4FAFB] transition"
                   >
-                    <span className="font-semibold text-[#1A4D3E]">{faq.question}</span>
+                    <span className="font-semibold text-[#1A4D3E] text-sm">{faq.question}</span>
                     {openFaq === idx ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
                   <AnimatePresence>
@@ -636,7 +761,7 @@ export default function ProductPage() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="px-6 pb-4 text-[#64748B] border-t border-[#D9EEF2]"
+                        className="px-5 pb-4 text-[#64748B] text-sm border-t border-[#D9EEF2]"
                       >
                         {faq.answer}
                       </motion.div>
@@ -649,40 +774,40 @@ export default function ProductPage() {
         )}
       </main>
 
-      {/* ========== FLOATING ACTION BUTTONS ========== */}
+      {/* Floating Action Buttons */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
         <button
           onClick={whatsappShare}
-          className="w-12 h-12 rounded-full bg-green-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition transform"
+          className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-green-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition transform"
         >
-          <Phone size={22} />
+          <Phone size={18} />
         </button>
         <button
           onClick={shareProduct}
-          className="w-12 h-12 rounded-full bg-[#18606D] text-white shadow-lg flex items-center justify-center hover:scale-110 transition transform"
+          className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#18606D] text-white shadow-lg flex items-center justify-center hover:scale-110 transition transform"
         >
-          <Share2 size={20} />
+          <Share2 size={18} />
         </button>
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="w-12 h-12 rounded-full bg-white text-[#18606D] shadow-lg flex items-center justify-center hover:scale-110 transition transform border border-[#D9EEF2]"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-[#18606D] shadow-lg flex items-center justify-center hover:scale-110 transition transform border border-[#D9EEF2]"
           >
             <ChevronUp size={20} />
           </button>
         )}
       </div>
 
-      {/* Sticky CTA for mobile (only for program) */}
+      {/* Sticky CTA for mobile (program only) */}
       {!isConsultation && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#D9EEF2] p-4 shadow-lg z-40">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#D9EEF2] p-3 shadow-lg z-40">
           <div className="flex gap-3">
             <QuantitySelector quantity={quantity} setQuantity={setQuantity} stock={product.stock} />
             <button
               onClick={HandleAddToCart}
-              className="flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
             >
-              <ShoppingCart size={18} /> Add to Cart
+              <ShoppingCart size={16} /> Add to Cart
             </button>
           </div>
         </div>
@@ -690,19 +815,25 @@ export default function ProductPage() {
 
       {/* Toast Notification */}
       <AnimatePresence>
-        {toast && (
+        {toastMsg && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#18606D] text-white px-5 py-3 rounded-full shadow-lg text-sm flex items-center gap-2"
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#18606D] text-white px-4 py-2 rounded-full shadow-lg text-sm flex items-center gap-2"
           >
-            <CheckCircle size={16} /> {toast}
+            <CheckCircle size={16} /> {toastMsg}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <ScheduleCallModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} productName={product.name} productPrice={product.salePrice || product.originalPrice}/>
+      {/* Schedule Modal */}
+      <ScheduleCallModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        productName={product.name}
+        productPrice={product.salePrice || product.originalPrice}
+      />
     </div>
   );
 }

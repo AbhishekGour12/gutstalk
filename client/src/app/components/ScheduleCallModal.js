@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiCalendar, FiClock, FiX, FiChevronLeft, FiChevronRight, 
-  FiUser, FiMail, FiPhone, FiCheckCircle, FiCreditCard, FiLogIn 
+  FiUser, FiMail, FiPhone, FiCheckCircle, FiCreditCard, FiLogIn,
+  FiArrowLeft
 } from 'react-icons/fi';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay } from 'date-fns';
 import { availabilityAPI } from '../lib/availablity';
@@ -27,11 +28,12 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
   const [answers, setAnswers] = useState({});
   const [address, setAddress] = useState({ name: '', email: '', phone: '' });
   const [availableDates, setAvailableDates] = useState([]);
+  const [mcqError, setMcqError] = useState('');
   const router = useRouter();
   const user = useSelector(state => state.auth.user);
   const socketRef = useRef(null);
+  const sessionId = useRef(Math.random().toString(36).substring(7));
 
-  // Fixed consultation price for this modal (₹99 offer)
   const CONSULTATION_PRICE = 99;
   const isLoggedIn = !!user;
 
@@ -45,8 +47,9 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
       });
     }
   }, [user, step]);
+  
 
-  // Initialize socket connection when modal opens
+  // Initialize socket connection
   useEffect(() => {
     if (isOpen && !socketRef.current) {
       socketRef.current = io(process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin, {
@@ -54,14 +57,17 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
         autoConnect: true
       });
 
-      socketRef.current.on('connect', () => {
-        console.log('Socket connected');
-      });
-
-      socketRef.current.on('slot-booked', (data) => {
+      socketRef.current.on('connect', () => console.log('Socket connected'));
+      socketRef.current.on('slot-held', (data) => {
         if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === data.date) {
           loadSlotsForDate(selectedDate);
         }
+      });
+      socketRef.current.on('slot-released', (data) => {
+        if (selectedDate && format(selectedDate, 'yyyy-MM-dd') === data.date) {
+          loadSlotsForDate(selectedDate);
+        }
+        
       });
     }
     return () => {
@@ -71,7 +77,20 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
       }
     };
   }, [isOpen, selectedDate]);
-
+useEffect(() => {
+  const handleBeforeUnload = () => {
+    if (selectedSlot && selectedDate) {
+      const dateStr = formatDate(selectedDate);
+      const timeStr = selectedSlot.start;
+      const userIdValue = user?._id || sessionId.current;
+      // Use sendBeacon for reliable delivery during page unload
+      const payload = JSON.stringify({ date: dateStr, startTime: timeStr, userId: userIdValue });
+      navigator.sendBeacon('/api/availability/release-slot', new Blob([payload], { type: 'application/json' }));
+    }
+  };
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+}, [selectedSlot, selectedDate, user]);
   // Load Razorpay script once
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Razorpay) {
@@ -84,16 +103,12 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
 
   // Fetch MCQs on mount
   useEffect(() => {
-    if (isOpen) {
-      bookingAPI.getMCQs().then(setMcqs).catch(console.error);
-    }
+    if (isOpen) bookingAPI.getMCQs().then(setMcqs).catch(console.error);
   }, [isOpen]);
 
   // Fetch slots when date changes
   useEffect(() => {
-    if (selectedDate) {
-      loadSlotsForDate(selectedDate);
-    }
+    if (selectedDate) loadSlotsForDate(selectedDate);
   }, [selectedDate]);
 
   // On modal open, set today as selected date and load its slots
@@ -110,18 +125,18 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
   }, [isOpen]);
 
   const loadSlotsForDate = async (date) => {
-    setLoadingSlots(true);
-    try {
-      const res = await availabilityAPI.getSlots(format(date, 'yyyy-MM-dd'));
-      console.log('Slots for', format(date, 'yyyy-MM-dd'), res.slots);
-      setSlots(res.slots || []);
-    } catch (err) {
-      toast.error('Failed to load slots');
-      setSlots([]);
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
+  setLoadingSlots(true);
+  try {
+    const userIdValue = user?._id || sessionId.current;
+    const res = await availabilityAPI.getSlots(format(date, 'yyyy-MM-dd'), userIdValue);
+    setSlots(res.slots || []);
+  } catch (err) {
+    toast.error('Failed to load slots');
+    setSlots([]);
+  } finally {
+    setLoadingSlots(false);
+  }
+};
 
   const loadAvailableDates = async () => {
     try {
@@ -132,34 +147,91 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
     }
   };
 
-  const handleDateSelect = (date) => {
-   
-    setSelectedDate(date);
-    setSelectedSlot(null);
+  const formatDate = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  const handleSlotSelect = (slot) => {
-    setSelectedSlot(slot);
-    setStep('payment');
+  const formatTimeTo12Hour = (time24) => {
+    const [h, m] = time24.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${m} ${ampm}`;
   };
-  const formatDate = (date) => {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+
+  // --- Slot Hold / Release Logic ---
+ const releaseCurrentSlot = async () => {
+  if (selectedSlot && selectedDate) {
+    const dateStr = formatDate(selectedDate);
+    const timeStr = selectedSlot.start;
+    const userIdValue = user?._id || sessionId.current;
+   
+    try {
+      const result = await availabilityAPI.releaseSlot({
+        date: dateStr,
+        startTime: timeStr,
+        userId: userIdValue
+      });
+     
+    } catch (err) {
+      console.error('❌ Release API error:', err);
+    }
+  } else {
+    console.log('⚠️ No slot to release');
+  }
 };
 
+  const handleSlotSelect = async (slot) => {
+    try {
+      const holdRes = await availabilityAPI.holdSlot({
+        date: formatDate(selectedDate),
+        startTime: slot.start,
+        userId: user?._id || sessionId.current
+      });
+      if (!holdRes.success) {
+        toast.error(holdRes.error || 'Slot no longer available');
+        return;
+      }
+      setSelectedSlot(slot);
+      setStep('payment');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to hold slot');
+    }
+  };
+
+  // --- Navigation with release ---
+  const goBack = async () => {
+    if (step === 'payment') {
+      await releaseCurrentSlot();
+      setSelectedSlot(null);
+      setStep('calendar');
+    } else if (step === 'form') {
+      setStep('payment');
+    } else if (step === 'mcq') {
+      setStep('form');
+    }
+  };
+
+  const handleCloseModal = async () => {
+    await releaseCurrentSlot();
+    console.log('Modal closed, slot released if it was held.');
+    onClose();
+  };
+
+  // --- Payment (same as before, but ensure release on failure) ---
   const handleRazorpayPayment = async () => {
     if (typeof window === "undefined" || !window.Razorpay) {
       toast.error("Payment gateway is still loading. Please wait.");
       return;
     }
 
-    // Fixed amount: ₹99 (no discount applied)
-    const amountToPay = CONSULTATION_PRICE * 100; // 9900 paise
-
+    const amountToPay = CONSULTATION_PRICE * 100;
     setPaymentLoading(true);
+
     try {
       const rpOrder = await paymentAPI.createOrder({
         amount: amountToPay,
@@ -175,7 +247,11 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
         description: `Consultation: ${productName}`,
         remember_customer: true,
         modal: {
-          ondismiss: () => setPaymentLoading(false),
+          ondismiss: async () => {
+            setPaymentLoading(false);
+            await releaseCurrentSlot();
+            setStep('calendar');
+          },
           handleback: true,
           backdropclose: false,
           zIndex: 999999,
@@ -222,10 +298,12 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
               toast.success('Payment successful! Please complete your details.');
             } else {
               toast.error("Payment Verification Failed");
+              await releaseCurrentSlot();
               setStep('calendar');
             }
           } catch (err) {
             toast.error("Verification Error");
+            await releaseCurrentSlot();
             setStep('calendar');
           } finally {
             setPaymentLoading(false);
@@ -233,15 +311,17 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
         }
       };
       const rz = new window.Razorpay(options);
-      rz.on('payment.failed', (response) => {
+      rz.on('payment.failed', async (response) => {
         toast.error("Payment Failed: " + response.error.description);
         setPaymentLoading(false);
+        await releaseCurrentSlot();
         setStep('calendar');
       });
       rz.open();
     } catch (err) {
       toast.error(err.message);
       setPaymentLoading(false);
+      await releaseCurrentSlot();
       setStep('calendar');
     }
   };
@@ -259,29 +339,58 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
     setStep('mcq');
   };
 
-  const handleMcqSubmit = async () => {
-    const answerArray = Object.entries(answers).map(([qId, ans]) => ({ questionId: qId, answer: ans }));
-    await bookingAPI.submitMCQs(bookingId, answerArray);
-    toast.success('Thank you! Your consultation is confirmed. You will receive a meeting link via email.');
-    onClose();
-    router.push('/dashboard');
-  };
+ const handleMcqSubmit = async () => {
+  // Validate required MCQs
+  if (!validateMcqs()) {
+    toast.error('Please answer the mandatory questions');
+    return;
+  }
+  
+  // Format answers for API
+  const answerArray = Object.entries(answers).map(([qId, ans]) => ({
+    questionId: qId,
+    answer: Array.isArray(ans) ? ans.join(', ') : ans  // Join multiple answers with comma
+  }));
+  
+  await bookingAPI.submitMCQs(bookingId, answerArray);
+  toast.success('Thank you! Your consultation is confirmed. You will receive a meeting link via email.');
+  handleCloseModal();
+  router.push('/dashboard');
+};
 
   const handleLoginRedirect = () => {
-    // Store current URL to redirect back after login
     localStorage.setItem('redirectAfterLogin', window.location.pathname);
     router.push('/login');
-    onClose(); // close modal while redirecting
+    onClose();
   };
 
-  // Helper to check if a date has available slots
-  const hasAvailableSlots = (date) => {
-    return availableDates.some(d => isSameDay(new Date(d), date));
-  };
+  const hasAvailableSlots = (date) => availableDates.some(d => isSameDay(new Date(d), date));
 
   if (!isOpen) return null;
-
-  // Show offer banner for non-logged-in users (before any step)
+// Helper: Get number of required MCQs (you can set first 2 or 3 as required)
+const getRequiredMcqCount = () => {
+  // Make first 2 questions mandatory
+  const requiredQuestions = mcqs.slice(0, 2);
+  const answeredRequired = requiredQuestions.filter(q => {
+    const answer = answers[q._id];
+    return answer && (Array.isArray(answer) ? answer.length > 0 : answer.trim().length > 0);
+  });
+  return answeredRequired.length;
+};
+// Validate MCQs before submit
+const validateMcqs = () => {
+  const requiredCount = getRequiredMcqCount();
+  const totalRequired = Math.min(2, mcqs.length); // First 2 questions are mandatory
+  
+  if (requiredCount < totalRequired) {
+    setMcqError(`Please answer the first ${totalRequired} questions`);
+    return false;
+  }
+  
+  setMcqError('');
+  return true;
+};
+  // Offer banner for non-logged-in users
   if (!isLoggedIn) {
     return (
       <AnimatePresence>
@@ -307,16 +416,13 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
               <p className="text-[#64748B] mb-3">
                 Get this consultation for only <span className="text-[#18606D] font-bold text-xl">₹99</span>
               </p>
-              <p className="text-sm text-[#64748B] mb-6">
-                (Regular price: ₹{productPrice})
-              </p>
+              <p className="text-sm text-[#64748B] mb-6">(Regular price: ₹{productPrice})</p>
               <button
                 onClick={handleLoginRedirect}
                 className="w-full bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
               >
                 <FiLogIn /> Login / Sign up to Claim
               </button>
-             
             </div>
           </motion.div>
         </motion.div>
@@ -324,7 +430,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
     );
   }
 
-  // Logged-in users see the full modal with ₹99 price
+  // Main modal for logged-in users
   return (
     <AnimatePresence>
       <motion.div
@@ -332,7 +438,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
-        onClick={onClose}
+        onClick={handleCloseModal}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -341,11 +447,18 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
           className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header with progress indicator */}
+          {/* Header with back button */}
           <div className="p-5 border-b border-[#D9EEF2] bg-gradient-to-r from-[#F4FAFB] to-white">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#1A4D3E]">Schedule Your Consultation</h2>
-              <button onClick={onClose} className="p-2 rounded-full hover:bg-white transition-colors">
+              <div className="flex items-center gap-3">
+                {step !== 'calendar' && (
+                  <button onClick={goBack} className="p-2 rounded-full hover:bg-white transition-colors">
+                    <FiArrowLeft size={20} className="text-[#18606D]" />
+                  </button>
+                )}
+                <h2 className="text-xl font-bold text-[#1A4D3E]">Schedule Your Consultation</h2>
+              </div>
+              <button onClick={handleCloseModal} className="p-2 rounded-full hover:bg-white transition-colors">
                 <FiX size={20} className="text-[#64748B]" />
               </button>
             </div>
@@ -369,28 +482,16 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
           </div>
 
           <div className="flex flex-col md:flex-row h-full">
-            {/* Calendar Section */}
+            {/* Calendar Section (same as before) */}
             <div className="md:w-1/2 p-5 border-r border-[#D9EEF2] bg-[#F4FAFB]">
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-center mb-5">
-                  <button 
-                    onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    className="p-2 hover:bg-[#F4FAFB] rounded-full transition"
-                  >
-                    <FiChevronLeft className="text-[#18606D]" />
-                  </button>
+                  <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-[#F4FAFB] rounded-full"><FiChevronLeft className="text-[#18606D]" /></button>
                   <span className="font-semibold text-[#1A4D3E]">{format(currentMonth, 'MMMM yyyy')}</span>
-                  <button 
-                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                    className="p-2 hover:bg-[#F4FAFB] rounded-full transition"
-                  >
-                    <FiChevronRight className="text-[#18606D]" />
-                  </button>
+                  <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-[#F4FAFB] rounded-full"><FiChevronRight className="text-[#18606D]" /></button>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center text-sm mb-3">
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                    <div key={d} className="text-[#64748B] font-medium py-1">{d}</div>
-                  ))}
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d} className="text-[#64748B] font-medium py-1">{d}</div>)}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
@@ -400,19 +501,13 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
                     return (
                       <button
                         key={day}
-                        onClick={() => handleDateSelect(day)}
-                        className={`
-                          relative p-2 rounded-full text-sm transition-all
-                          ${isSelected ? 'bg-[#18606D] text-white shadow-md' : ''}
-                          ${!isSelected && hasSlots ? 'bg-[#E8F4F7] text-[#18606D] font-medium' : ''}
-                          ${!isSelected && !hasSlots && !isTodayDate ? 'text-[#64748B] hover:bg-[#F4FAFB]' : ''}
-                          ${isTodayDate && !isSelected && !hasSlots ? 'border border-[#18606D] text-[#18606D]' : ''}
-                        `}
+                        onClick={() => setSelectedDate(day)}
+                        className={`relative p-2 rounded-full text-sm transition-all ${
+                          isSelected ? 'bg-[#18606D] text-white shadow-md' : !isSelected && hasSlots ? 'bg-[#E8F4F7] text-[#18606D] font-medium' : !isSelected && !hasSlots && !isTodayDate ? 'text-[#64748B] hover:bg-[#F4FAFB]' : isTodayDate && !isSelected && !hasSlots ? 'border border-[#18606D] text-[#18606D]' : ''
+                        }`}
                       >
                         {format(day, 'd')}
-                        {hasSlots && !isSelected && (
-                          <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                        )}
+                        {hasSlots && !isSelected && <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-green-500 rounded-full"></span>}
                       </button>
                     );
                   })}
@@ -423,7 +518,7 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
               </div>
             </div>
 
-            {/* Right Panel */}
+            {/* Right Panel (step content) */}
             <div className="md:w-1/2 p-4">
               {step === 'calendar' && (
                 <>
@@ -434,27 +529,38 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
                     <p className="text-center text-[#64748B] py-8">No slots available for this date.</p>
                   ) : (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {slots.map((slot, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleSlotSelect(slot)}
-                          disabled={!slot.isAvailable}
-                          className={`w-full p-3 rounded-xl border text-left transition ${
-                            slot.isAvailable 
-                              ? 'hover:bg-[#F4FAFB] border-[#D9EEF2] cursor-pointer' 
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <FiClock className="inline mr-2" /> {slot.start} – {slot.end}
-                            </div>
-                            {!slot.isAvailable && (
-                              <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">Booked</span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                     {slots.map((slot, idx) => {
+  let disabled = slot.isBooked || (slot.isHeld && !slot.heldByCurrentUser);
+  let badgeText = '';
+  let badgeClass = '';
+
+  if (slot.isBooked) {
+    badgeText = 'Booked';
+    badgeClass = 'bg-red-100 text-red-600';
+  } else if (slot.isHeld && !slot.heldByCurrentUser) {
+    badgeText = 'Processing';
+    badgeClass = 'bg-orange-100 text-orange-600';
+  }
+
+  return (
+    <button
+      key={idx}
+      onClick={() => !disabled && handleSlotSelect(slot)}
+      disabled={disabled}
+      className={`w-full p-3 rounded-xl border text-left transition ${
+        !disabled ? 'hover:bg-[#F4FAFB] border-[#D9EEF2] cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+      }`}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <FiClock className="inline mr-2" /> 
+          {formatTimeTo12Hour(slot.start)} – {formatTimeTo12Hour(slot.end)}
+        </div>
+        {badgeText && <span className={`text-xs px-2 py-1 rounded-full ${badgeClass}`}>{badgeText}</span>}
+      </div>
+    </button>
+  );
+})}
                     </div>
                   )}
                 </>
@@ -468,19 +574,8 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
                     <p className="text-3xl font-bold text-[#18606D] mt-2">₹{CONSULTATION_PRICE}</p>
                     <p className="text-sm text-green-600 mt-1">Special offer price for you!</p>
                   </div>
-                  <button 
-                    onClick={handleRazorpayPayment} 
-                    disabled={paymentLoading}
-                    className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-                  >
-                    {paymentLoading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Processing...
-                      </span>
-                    ) : (
-                      `Pay ₹${CONSULTATION_PRICE}`
-                    )}
+                  <button onClick={handleRazorpayPayment} disabled={paymentLoading} className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
+                    {paymentLoading ? (<span className="flex items-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> Processing...</span>) : `Pay ₹${CONSULTATION_PRICE}`}
                   </button>
                 </div>
               )}
@@ -488,55 +583,79 @@ const ScheduleCallModal = ({ isOpen, onClose, productName, productPrice = 249 })
               {step === 'form' && (
                 <form onSubmit={handleFormSubmit} className="space-y-4">
                   <h3 className="font-semibold text-lg text-[#1A4D3E] mb-4">Your Details</h3>
-                  <div className="relative">
-                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" />
-                    <input name="name" defaultValue={address.name} placeholder="Full Name" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none" />
-                  </div>
-                  <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" />
-                    <input name="email" type="email" defaultValue={address.email} placeholder="Email Address" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none" />
-                  </div>
-                  <div className="relative">
-                    <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" />
-                    <input name="phone" defaultValue={address.phone} placeholder="Phone Number" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none" />
-                  </div>
+                  <div className="relative"><FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" /><input name="name" defaultValue={address.name} placeholder="Full Name" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D]" /></div>
+                  <div className="relative"><FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" /><input name="email" type="email" defaultValue={address.email} placeholder="Email Address" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl" /></div>
+                  <div className="relative"><FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#64748B]" /><input name="phone" defaultValue={address.phone} placeholder="Phone Number" required className="w-full pl-10 pr-4 py-3 border border-[#D9EEF2] rounded-xl" /></div>
                   <button type="submit" className="w-full bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white py-3 rounded-xl font-semibold mt-4">Continue to Questions</button>
                 </form>
               )}
 
               {step === 'mcq' && (
-                <div>
-                  <h3 className="font-semibold text-lg text-[#1A4D3E] mb-4">Health Assessment</h3>
-                  <div className="space-y-5 max-h-[400px] overflow-y-auto pr-2">
-                    {mcqs.map((q, idx) => (
-                      <div key={q._id} className="bg-[#F4FAFB] p-4 rounded-xl">
-                        <p className="font-medium text-[#1A4D3E] mb-3">{idx+1}. {q.question}</p>
-                        <div className="space-y-2">
-                          {q.options.map(opt => (
-                            <label key={opt} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-white transition">
-                              <input 
-                                type="radio" 
-                                name={`q_${q._id}`} 
-                                value={opt} 
-                                onChange={() => setAnswers({...answers, [q._id]: opt})}
-                                className="w-4 h-4 text-[#18606D]"
-                              />
-                              <span className="text-[#64748B]">{opt}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button 
-                    onClick={handleMcqSubmit} 
-                    disabled={Object.keys(answers).length !== mcqs.length}
-                    className="w-full bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white py-3 rounded-xl font-semibold mt-5 disabled:opacity-50"
-                  >
-                    <FiCheckCircle className="inline mr-2" /> Submit & Confirm
-                  </button>
-                </div>
-              )}
+  <div>
+    <h3 className="font-semibold text-lg text-[#1A4D3E] mb-2">Health Assessment</h3>
+    <p className="text-sm text-[#64748B] mb-4">Please answer the following questions (you can select multiple options where applicable)</p>
+    <div className="space-y-5 max-h-[400px] overflow-y-auto pr-2">
+      {mcqs.map((q, idx) => (
+        <div key={q._id} className="bg-[#F4FAFB] p-4 rounded-xl border border-[#D9EEF2]">
+          <p className="font-medium text-[#1A4D3E] mb-3">
+            {idx+1}. {q.question}
+            {q.isRequired !== false && (
+              <span className="text-red-500 text-xs ml-1">*</span>
+            )}
+          </p>
+          <div className="space-y-2">
+            {q.options.map(opt => {
+              const currentAnswers = answers[q._id] || [];
+              const isChecked = Array.isArray(currentAnswers) && currentAnswers.includes(opt);
+              
+              return (
+                <label key={opt} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-white transition group">
+                  <input 
+                    type="checkbox"
+                    value={opt}
+                    checked={isChecked}
+                    onChange={(e) => {
+                      const current = answers[q._id] || [];
+                      let newValue;
+                      if (e.target.checked) {
+                        newValue = [...current, opt];
+                      } else {
+                        newValue = current.filter(item => item !== opt);
+                      }
+                      setAnswers({...answers, [q._id]: newValue});
+                    }}
+                    className="w-4 h-4 text-[#18606D] rounded focus:ring-2 focus:ring-[#18606D] cursor-pointer"
+                  />
+                  <span className="text-[#64748B] group-hover:text-[#1A4D3E] transition">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+          {answers[q._id]?.length > 0 && (
+            <p className="text-xs text-[#18606D] mt-2">
+              Selected: {answers[q._id].length} option(s)
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+    
+    {/* Validation message */}
+    {mcqError && (
+      <p className="text-red-500 text-sm mt-3 flex items-center gap-1">
+        <FiAlertCircle size={14} /> {mcqError}
+      </p>
+    )}
+    
+    <button 
+      onClick={handleMcqSubmit} 
+      disabled={Object.keys(answers).length < getRequiredMcqCount()}
+      className="w-full bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white py-3 rounded-xl font-semibold mt-5 disabled:opacity-50 transition"
+    >
+      <FiCheckCircle className="inline mr-2" /> Submit & Confirm
+    </button>
+  </div>
+)}
             </div>
           </div>
         </motion.div>

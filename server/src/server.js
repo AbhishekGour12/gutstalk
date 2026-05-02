@@ -15,10 +15,13 @@ import paymentRoutes from "./Routes/paymentRoutes.js";
 import CartRoutes from "./Routes/CartRoutes.js";
 import availablityRoutes from "./Routes/availablityRoutes.js";
 import bookingRoutes from "./Routes/bookingRoutes.js";
+import contactRoutes from "./Routes/contactRoutes.js";
 import { createZoomMeetingLink } from "./services/zoomMeet.js";
+import ratingRoutes from "./Routes/ratingRoutes.js"
 import adminRoutes from "./Routes/adminRoutes.js";
 import {Server} from "socket.io";
 import http from "http";
+
 const app = express();
 dotenv.config();
 app.use(cors());
@@ -43,6 +46,8 @@ io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
+
+
 app.use(
   "/uploads/products",
   express.static(path.join(process.cwd(), "uploads", "products"))
@@ -65,6 +70,9 @@ app.use("/api/cart", CartRoutes)
 app.use("/api/availability", availablityRoutes)
 app.use("/api/booking", bookingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/contact", contactRoutes)
+app.use("/api/ratings", ratingRoutes)
+
 app.get("/", (req, res) =>{
     res.send("Hello World");
 })

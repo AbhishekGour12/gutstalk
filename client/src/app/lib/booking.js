@@ -28,7 +28,11 @@ export const bookingAPI = {
   updateBookingStatus: async (bookingId, status) => {
     const res = await api.put(`/booking/admin/${bookingId}/status`, { status });
     return res.data;
-  }
+  },
+  rescheduleBooking: async (bookingId, data) => {
+  const res = await api.put(`/booking/admin/reschedule/${bookingId}`, data);
+  return res.data;
+  },
 
   
 };

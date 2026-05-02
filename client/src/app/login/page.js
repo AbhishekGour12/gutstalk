@@ -182,13 +182,13 @@ const LoginPage = () => {
             <div className="mb-8">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Heart className="w-12 h-12 text-[#CFE8EC] fill-current" />
-                <h1 className="text-4xl font-bold tracking-tight">GutWell</h1>
+                <h1 className="text-4xl font-bold tracking-tight">GutTalks</h1>
               </div>
               <p className="text-sm text-[#CFE8EC] tracking-wide">Your Journey to Better Gut Health</p>
             </div>
 
             <div className="w-full flex justify-center mb-8">
-              <div className="relative w-full h-64 rounded-lg overflow-hidden shadow-lg">
+              <div className="relative w-full aspect-[4/5] rounded-lg overflow-hidden shadow-lg">
                 <Image
                   src="/login-gut-health.png"
                   alt="Gut Health Wellness"

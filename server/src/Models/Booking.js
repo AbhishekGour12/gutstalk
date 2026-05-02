@@ -20,7 +20,7 @@ const bookingSchema = new mongoose.Schema({
       answer: String
     }
   ],
-  status: { type: String, enum: ['scheduled', 'completed', 'cancelled'], default: 'scheduled' },
+  status: { type: String, enum: ['scheduled', 'completed', 'cancelled', 'rescheduled'], default: 'scheduled' },
   reminderSent: { type: Boolean, default: false }
 }, { timestamps: true });
 

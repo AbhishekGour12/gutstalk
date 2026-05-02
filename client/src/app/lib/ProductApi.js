@@ -193,6 +193,61 @@ updateCartItem: async (itemId, quantity) => {
   const response = await api.delete('/cart');
   return response.data;
 },
+// User Interest methods
+ addUserInterest: async (productId) => {
+  const response = await api.post('/user-interests', {productId: productId},{
+  
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    
+  });
+  return response.data;
+},
+
+ removeUserInterest: async (productId) => {
+  const response = await api.delete(`/user-interests/${productId}`, {
+    
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  return response.data;
+},
+
+checkUserInterest: async (productId) => {
+  const response = await api.get(`/user-interests/${productId}`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  return response.data;
+},
+
+getProductLikesCount: async (slug) => {
+  const response = await api.get(`/user-interests/likeCount/${slug}`);
+  return response.data;
+},
+
+// Rating methods
+submitRating: async(data) => {
+  
+  const response = await api.post(`/ratings/product/${data.productId}`, data, {
+    
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+   
+  });
+  return response.data;
+},
+
+ getProductRatings: async (productId) => {
+  const response = await api.get(`/ratings/product/${productId}`);
+  return response.data.reviews;
+},
 getShippingCharges: async (data) =>{
   const response = await api.post("/shipping/charge", data);
   return response.data;

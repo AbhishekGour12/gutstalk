@@ -86,36 +86,7 @@ const ProductCard = ({ product }) => {
   );
 };
 
-// Test Card Component (SMT / GMT)
-const TestCard = ({ test }) => {
-  return (
-    <Link href={test.link}>
-      <motion.div
-        whileHover={{ y: -8, boxShadow: "0 20px 25px -12px rgba(0,0,0,0.15)" }}
-        transition={{ type: "spring", stiffness: 300 }}
-        className="bg-gradient-to-br from-white to-[#F4FAFB] rounded-2xl overflow-hidden shadow-md border border-[#D9EEF2] cursor-pointer h-full flex flex-col"
-      >
-        <div className="relative h-48 overflow-hidden flex-shrink-0">
-          <Image
-            src={test.image}
-            alt={test.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <div className="absolute bottom-3 left-3 text-white font-bold text-lg">{test.name}</div>
-        </div>
-        <div className="p-4 flex flex-col flex-grow">
-          <p className="text-sm text-[#64748B]">{test.description}</p>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs bg-[#E8F4F7] text-[#18606D] px-2 py-1 rounded-full">{test.sampleType}</span>
-            <span className="text-xs text-[#18606D] font-semibold">Know More →</span>
-          </div>
-        </div>
-      </motion.div>
-    </Link>
-  );
-};
+
 
 export default function Product() {
   const [products, setProducts] = useState([]);
@@ -123,22 +94,7 @@ export default function Product() {
   const [filterType, setFilterType] = useState("all"); // all, consultation, program
   const [searchQuery, setSearchQuery] = useState("");
 
-  const testCards = [
-    {
-      name: "SMT Test",
-      link: "/tests/smt",
-      description: "Basic gut health screening – identifies antibody response to infections",
-      sampleType: "Blood Sample",
-      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop",
-    },
-    {
-      name: "GMT Test",
-      link: "/tests/gmt",
-      description: "Advanced stool antigen test for active infection detection",
-      sampleType: "Stool Sample",
-      image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=300&fit=crop",
-    },
-  ];
+  
 
   useEffect(() => {
     fetchProducts();
@@ -245,19 +201,7 @@ export default function Product() {
               </div>
             )}
 
-            {/* Test Cards Section (always visible) */}
-            <div>
-              <h2 className="text-2xl font-bold text-[#0F172A] mb-6">Gut Health Tests</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {testCards.map((test, idx) => (
-                  <TestCard key={idx} test={test} />
-                ))}
-              </div>
-              <p className="text-center text-sm text-[#64748B] mt-6">
-                Not sure which test is right for you?{" "}
-                <Link href="/contact" className="text-[#18606D] font-semibold">Talk to our expert</Link>
-              </p>
-            </div>
+            
           </>
         )}
 

@@ -47,7 +47,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Home', href: '/', icon: FiHome },
-    { name: 'Products', href: '/products', icon: FiFileText, hasDropdown: true },
+    { name: 'Products', href: '#', icon: FiFileText, hasDropdown: true },
     { name: 'My Orders', href: '/dashboard', icon: FiUser },
     { name: 'Contact', href: '/contact', icon: FiMail },
     { name: 'About', href: '/about', icon: FiShield },
@@ -204,7 +204,7 @@ const Navbar = () => {
               </Link>
             )}
 
-            <motion.button whileHover={{ scale: 1.05 }} className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white px-5 py-2 rounded-xl text-sm font-semibold" onClick={() => openScheduleModal('Consultation', 99)}>
+            <motion.button whileHover={{ scale: 1.05 }} className="bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white px-5 py-2 rounded-xl text-sm font-semibold" onClick={() => openScheduleModal('Consultation', 399)}>
               Book ₹99 Call
             </motion.button>
           </div>
@@ -349,7 +349,7 @@ const Navbar = () => {
                 )}
                 <button
                   onClick={() => {
-                    openScheduleModal('Consultation', 99);
+                    openScheduleModal('Consultation', 399);
                     setIsMobileMenuOpen(false);
                   }}
                   className="w-full bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white p-3 rounded-xl font-semibold flex items-center justify-center gap-2"

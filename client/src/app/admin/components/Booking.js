@@ -6,6 +6,7 @@ import {FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaVideo, FaSearch, 
 import { bookingAPI } from "../../lib/booking";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
+import { availabilityAPI } from "../../lib/availablity";
 
 export default function Booking() {
   const [bookings, setBookings] = useState([]);
@@ -14,6 +15,58 @@ export default function Booking() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  // Inside Booking component, add states
+const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+const [rescheduleBooking, setRescheduleBooking] = useState(null);
+const [newDate, setNewDate] = useState('');
+const [newStartTime, setNewStartTime] = useState('');
+const [newEndTime, setNewEndTime] = useState('');
+const [availableSlotsForReschedule, setAvailableSlotsForReschedule] = useState([]);
+const [loadingSlots, setLoadingSlots] = useState(false);
+
+// Add reschedule handler
+const handleReschedule = async () => {
+  if (!newDate || !newStartTime || !newEndTime) {
+    toast.error('Please select new date and time');
+    return;
+  }
+  try {
+    await bookingAPI.rescheduleBooking(rescheduleBooking._id, {
+      newDate,
+      newStartTime,
+      newEndTime
+    });
+    toast.success('Booking rescheduled successfully');
+    fetchBookings();
+    setShowRescheduleModal(false);
+    setRescheduleBooking(null);
+  } catch (error) {
+    toast.error(error.response?.data?.error || 'Failed to reschedule');
+  }
+};
+
+// When opening reschedule modal for a booking, fetch slots for that date
+const openRescheduleModal = async (booking) => {
+  setRescheduleBooking(booking);
+  // Set initial values to current date/time for convenience
+  const currentDate = new Date(booking.date).toISOString().split('T')[0];
+  setNewDate(currentDate);
+  setNewStartTime(booking.startTime);
+  setNewEndTime(booking.endTime);
+  setShowRescheduleModal(true);
+  // Optionally fetch available slots for that date (but user can change date)
+};
+
+// When date changes in reschedule modal, load available slots
+useEffect(() => {
+  if (newDate && showRescheduleModal) {
+    setLoadingSlots(true);
+    availabilityAPI.getSlots(newDate, null).then(res => {
+      setAvailableSlotsForReschedule(res.slots || []);
+    }).finally(() => setLoadingSlots(false));
+  }
+}, [newDate, showRescheduleModal]);
+
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -49,7 +102,14 @@ export default function Booking() {
     const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
+const formatTimeTo12Hour = (time24) => {
+  if (!time24) return '';
+  const [h, m] = time24.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+};
   const getStatusBadge = (status) => {
     const styles = {
       scheduled: "bg-green-100 text-green-700",
@@ -58,6 +118,7 @@ export default function Booking() {
     };
     return styles[status] || "bg-gray-100 text-gray-700";
   };
+  
 
   return (
     <div className="p-6">
@@ -143,7 +204,7 @@ export default function Booking() {
                         <FaCalendarAlt className="text-[#18606D] text-xs" />
                         <span className="text-sm">{format(new Date(booking.date), "dd MMM yyyy")}</span>
                         <FaClock className="text-[#18606D] text-xs ml-2" />
-                        <span className="text-sm">{booking.startTime}</span>
+                        <span className="text-sm">{formatTimeTo12Hour(booking.startTime)} – {formatTimeTo12Hour(booking.endTime)}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -195,6 +256,16 @@ export default function Booking() {
                             </button>
                           </>
                         )}
+                       
+{booking.status !== "completed" && (
+  <button
+    onClick={() => openRescheduleModal(booking)}
+    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
+    title="Reschedule"
+  >
+    <FaCalendarAlt />
+  </button>
+)}
                       </div>
                     </td>
                   </motion.tr>
@@ -272,6 +343,50 @@ export default function Booking() {
           </motion.div>
         </div>
       )}
+      {showRescheduleModal && rescheduleBooking && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl w-full max-w-lg p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold text-[#1A4D3E]">Reschedule Consultation</h3>
+        <button onClick={() => setShowRescheduleModal(false)} className="text-gray-500"><FaTimesCircle /></button>
+      </div>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">New Date</label>
+          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="w-full p-2 border rounded-xl" />
+        </div>
+        {newDate && (
+          <div>
+            <label className="block text-sm font-medium mb-1">New Time Slot</label>
+            {loadingSlots ? (
+              <div className="text-center py-4">Loading slots...</div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {availableSlotsForReschedule.map(slot => (
+                  <button
+                    key={slot.start}
+                    onClick={() => {
+                      setNewStartTime(slot.start);
+                      setNewEndTime(slot.end);
+                    }}
+                    className={`w-full p-2 rounded-xl border text-left ${newStartTime === slot.start ? 'bg-[#18606D] text-white' : 'hover:bg-[#F4FAFB]'}`}
+                  >
+                    {formatTimeTo12Hour(slot.start)} – {formatTimeTo12Hour(slot.end)}
+                  </button>
+                ))}
+                {availableSlotsForReschedule.length === 0 && <p className="text-center text-gray-500">No slots available</p>}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex gap-3 pt-4">
+          <button onClick={() => setShowRescheduleModal(false)} className="flex-1 py-2 border rounded-xl">Cancel</button>
+          <button onClick={handleReschedule} className="flex-1 bg-[#18606D] text-white py-2 rounded-xl">Confirm Reschedule</button>
+        </div>
+      </div>
+    </motion.div>
+  </div>
+)}
     </div>
   );
 }

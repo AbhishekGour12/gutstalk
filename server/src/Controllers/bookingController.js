@@ -1,9 +1,11 @@
 import Booking from '../Models/Booking.js';
-import Availability from '../Models/Availablity.js';
+import Slot from '../Models/Slot.js';
 import MCQ from '../Models/MCQ.js';
 import User from '../Models/User.js';
 import { createZoomMeetingLink } from '../services/zoomMeet.js';
 import crypto from 'crypto';
+import TempSlotHold from '../Models/TempSlotHold.js';
+import { sendBookingConfirmationEmail, sendRescheduleEmail } from '../utils/EmailTemplate.js';
 
 // Helper: format phone with +91
 const formatPhone = (phone) => {
@@ -24,32 +26,20 @@ export const initiateBooking = async (req, res) => {
     let guestInfo = null;
     let formattedPhone = null;
    
-    // 1. Check if slot is already booked (by checking Availability's bookedSlots)
-  const [year, month, day] = date.split('-').map(Number);
-
-// Create exact UTC boundaries
-const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
-
-const targetDate = startOfDay;
-
-
-const availability = await Availability.findOne({
-  date: {
-    $gte: startOfDay,
-    $lte: endOfDay
-  },
-  isActive: true
-});
-
+    // Parse date to UTC boundaries
+    const [year, month, day] = date.split('-').map(Number);
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
     
-    if (availability) {
-      const isSlotBooked = availability.bookedSlots.some(slot => slot.startTime === startTime);
-      if (isSlotBooked) {
-        return res.status(409).json({ error: 'This time slot is no longer available. Please choose another slot.' });
-      }
-    } else {
-      return res.status(404).json({ error: 'No availability found for this date.' });
+    // 1. Check if the specific slot exists and is not already booked
+    const slot = await Slot.findOne({
+      date: { $gte: startOfDay, $lte: endOfDay },
+      startTime: startTime,
+      isBooked: false
+    });
+    
+    if (!slot) {
+      return res.status(404).json({ error: 'Slot not available for this date and time.' });
     }
 
     // 2. Handle user (logged-in or guest)
@@ -97,7 +87,7 @@ const availability = await Availability.findOne({
       guestName: guestInfo?.name,
       guestEmail: guestInfo?.email,
       guestPhone: guestInfo?.phone,
-      date: targetDate,
+      date: startOfDay,
       startTime,
       endTime,
       price,
@@ -111,36 +101,35 @@ const availability = await Availability.findOne({
     const meetLink = await createZoomMeetingLink(booking);
     booking.meetLink = meetLink;
     await booking.save();
+    
+    // 5. Remove the temporary hold (if any)
+    await TempSlotHold.deleteOne({ 
+      date: { $gte: startOfDay, $lte: endOfDay }, 
+      startTime 
+    });
 
-    // 5. Update Availability: mark this slot as booked
-   await Availability.findOneAndUpdate(
-  {
-    date: {
-      $gte: startOfDay,
-      $lte: endOfDay
-    }
-  },
-  {
-    $push: { bookedSlots: { startTime, endTime, bookingId } }
-  }
-);
+    // 6. Mark the slot as booked
+    slot.isBooked = true;
+    slot.bookingId = booking._id;
+    await slot.save();
 
+    // 7. Broadcast socket event
     if (global.io) {
-    global.io.emit('slot-booked', {
-    date: date,
-    startTime: startTime,
-    endTime: endTime,
-    bookingId: bookingId
-  });
-}
+      global.io.emit('slot-booked', {
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        bookingId: bookingId
+      });
+    }
 
-    // 6. Add to user's consultation history
+    // 8. Add to user's consultation history
     if (finalUserId) {
       await User.findByIdAndUpdate(finalUserId, {
         $push: {
           consultationHistory: {
             bookingId: booking.bookingId,
-            date: targetDate,
+            date: startOfDay,
             startTime,
             expertName: 'Gut Health Expert',
             meetLink,
@@ -149,6 +138,19 @@ const availability = await Availability.findOne({
         }
       });
     }
+    const userEmail = guestInfo?.email || userDetails?.email || req.user?.email;
+if (userEmail) {
+  await sendBookingConfirmationEmail(userEmail, {
+    bookingId,
+    date: startOfDay,
+    startTime,
+    endTime,
+    meetLink,
+    price,
+    userName: guestInfo?.name || userDetails?.name || req.user?.name
+  });
+}
+
 
     res.json({ success: true, bookingId: booking.bookingId, meetLink });
   } catch (error) {
@@ -266,8 +268,102 @@ export const updateBookingStatus = async (req, res) => {
       { new: true }
     );
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (status === 'cancelled') {
+  const slot = await Slot.findOne({ date: booking.date, startTime: booking.startTime });
+  if (slot) {
+    slot.isBooked = false;
+    slot.bookingId = null;
+    await slot.save();
+  }
+}
     res.json({ success: true, booking });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Add this function to bookingController.js
+export const rescheduleBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { newDate, newStartTime, newEndTime } = req.body;
+
+    // Find the existing booking
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    
+
+    // Parse new date
+    const [year, month, day] = newDate.split('-').map(Number);
+    const startOfDay = new Date(Date.UTC(year, month-1, day, 0,0,0));
+    const endOfDay = new Date(Date.UTC(year, month-1, day, 23,59,59,999));
+
+    // Check if new slot is available (not booked)
+    const newSlot = await Slot.findOne({
+      date: { $gte: startOfDay, $lte: endOfDay },
+      startTime: newStartTime,
+      isBooked: false
+    });
+    if (!newSlot) {
+      return res.status(409).json({ error: 'New slot not available' });
+    }
+
+    // Release old slot (mark as not booked)
+    const oldSlot = await Slot.findOne({
+      date: booking.date,
+      startTime: booking.startTime
+    });
+    if (oldSlot) {
+      oldSlot.isBooked = false;
+      oldSlot.bookingId = null;
+      await oldSlot.save();
+    }
+
+    // Book new slot
+    newSlot.isBooked = true;
+    newSlot.bookingId = booking._id;
+    await newSlot.save();
+// In rescheduleBooking controller
+
+    // Update booking
+    const oldDate = booking.date;
+    const oldStartTime = booking.startTime;
+    const oldEndTime = booking.endTime;
+
+    booking.date = startOfDay;
+    booking.startTime = newStartTime;
+    booking.endTime = newEndTime;
+    booking.status = 'rescheduled';
+    await booking.save();
+
+    // Generate new meet link if needed (optional, but existing link remains valid; could regenerate)
+    // We'll keep old meet link as it's still the same meeting; but for new time, maybe create a new one? 
+    // For simplicity, we can keep the existing meet link or generate new. We'll keep existing.
+
+    // Send email to user
+    const userEmail = booking.guestEmail;
+    if (userEmail) {
+      await sendRescheduleEmail(userEmail, {
+        bookingId: booking.bookingId,
+        oldDate,
+        oldStartTime,
+        oldEndTime,
+        newDate: startOfDay,
+        newStartTime,
+        newEndTime,
+        meetLink: booking.meetLink,
+        userName: booking.guestName || 'Valued Customer'
+      });
+    }
+
+    // Emit socket event (optional)
+    if (global.io) {
+      global.io.emit('booking-rescheduled', { bookingId: booking._id, newDate: startOfDay, newStartTime });
+    }
+
+    res.json({ success: true, message: 'Booking rescheduled successfully', booking });
+  } catch (error) {
+    console.error('Reschedule error:', error);
     res.status(500).json({ error: error.message });
   }
 };

@@ -9,6 +9,7 @@ import {
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
+import api from "../lib/api";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -25,15 +26,51 @@ export default function ContactPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      toast.success("Message sent! We'll get back to you soon.");
-      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
-      setIsSubmitting(false);
-    }, 1500);
-  };
+  
+  let token = localStorage.getItem("token")
+  if(!token){
+    toast.error("login first");
+    return
+  }
+  setIsSubmitting(true);
+  e.preventDefault();
+  try {
+    // Prepare form data exactly matching model
+    const contactData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      subject: formData.subject,
+      message: formData.message // Note: using astrologerQuery from form
+    };
+    
+    // Call the API
+    const response = await api.post('/contact/submit', contactData)
+    
+    if (response.data.success) {
+      toast.success(response.data.message || 'Message sent successfully! We\'ll get back to you soon.', {
+        duration: 5000,
+        icon: '📨'
+      });
+      
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: ''
+      });
+    } else {
+      toast.error(response.message || 'Failed to send message');
+    }
+  } catch (error) {
+    console.error('Contact form error:', error);
+    toast.error(error.message || 'Failed to send message. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const contactInfo = [
     { icon: FiMapPin, title: "Visit Us", details: "123 Gut Health Street, Wellness City, IN 560001" },
@@ -152,13 +189,26 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#1A4D3E] mb-1">Subject</label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none"
-                  />
+                 <select
+    name="subject"
+    value={formData.subject}
+    onChange={handleChange}
+    required
+    className="block w-full px-4 py-3 text-sm md:text-base 
+               rounded-xl border border-teal-200 
+               bg-white/30 backdrop-blur-md 
+               text-teal-900 
+               focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-400 
+               transition-all duration-200 shadow-sm"
+  >
+    <option value="">Select a subject</option>
+    <option value="general">General Inquiry</option>
+    <option value="technical">Technical Support</option>
+    <option value="billing">Billing & Payments</option>
+    <option value="astrologer">Become an Astrologer</option>
+    <option value="feedback">Feedback & Suggestions</option>
+    <option value="other">Other</option>
+  </select>
                 </div>
               </div>
               <div>
@@ -170,7 +220,8 @@ export default function ContactPage() {
                   value={formData.message}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none"
-                />
+                  minLength={10}
+               />
               </div>
               <button
                 type="submit"

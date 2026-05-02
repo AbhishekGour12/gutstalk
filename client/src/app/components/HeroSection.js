@@ -523,7 +523,7 @@ const HeroSection = () => {
       {/* Decorative Elements - Teal gradient */}
       <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F4FAFB] to-transparent pointer-events-none" />
     </section>
-     <ScheduleCallModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} productName="Special Consultation" productPrice={99}/>
+     <ScheduleCallModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} productName="Special Consultation" productPrice={399}/>
     </>
   );
 };

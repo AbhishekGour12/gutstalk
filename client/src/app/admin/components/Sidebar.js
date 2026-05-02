@@ -1,4 +1,4 @@
-import { FaTachometerAlt, FaBoxes, FaCalendarAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaBoxes, FaCalendarAlt, FaGift } from "react-icons/fa";
 import { HeartPulse } from "lucide-react";
 
 export default function Sidebar({ activeTab, setActiveTab, sidebarOpen }) {
@@ -8,6 +8,7 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen }) {
     {id: "availability", label: "Availability", icon: FaTachometerAlt },
     { id: "bookings", label: "Bookings", icon: FaCalendarAlt },
     {id: "orders", label: "Orders", icon: FaBoxes },
+    {id: "coupon", label: "Coupon", icon: FaGift }
   ];
 
   return (

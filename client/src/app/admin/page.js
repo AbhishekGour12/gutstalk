@@ -9,6 +9,8 @@ import { PageLoader } from "./components/Loading";
 import CallSlotManagement from "./components/CallSlotManagement";
 import Booking from "./components/Booking";
 import OrdersTab from "./components/OrdersTab";
+import { actionAsyncStorage } from "next/dist/server/app-render/action-async-storage.external";
+import CouponsTab from "./components/CouponsTab";
 
 const dummyStats = {
   totalRevenue: 125430,
@@ -66,6 +68,7 @@ export default function AdminPage() {
                 {activeTab === "availability" && <CallSlotManagement/>}
                 {activeTab === "bookings" && <Booking/>}
                 {activeTab === "orders" && <OrdersTab/>}
+                {activeTab === "coupon" && <CouponsTab/>}
               </motion.div>
             </AnimatePresence>
           </div>

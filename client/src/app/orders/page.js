@@ -33,7 +33,7 @@ const MyOrdersPage = () => {
     const token = localStorage.getItem("token");
     if (!user && !token) {
       toast.error("Please login to view your orders");
-      router.push("/Login");
+      router.push("/login");
       return;
     }
     loadOrders();
