@@ -26,13 +26,22 @@ import ScheduleCallModal from './ScheduleCallModal';
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [bubbles, setBubbles] = useState([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
-  // Carousel slides data
+  useEffect(() => {
+    const generated = Array.from({ length: 8 }).map((_, i) => ({
+      size: 20 + i * 6,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+    }));
+    setBubbles(generated);
+  }, []);
+
   const slides = [
     {
       id: 1,
-      image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop",
+      image: "https://images.unsplash.com/photo-1576091160399-112ba8c25d7d?w=800&h=600&fit=crop",
       title: "Expert Consultation",
       description: "One-on-one with gut health specialists",
       badge: "Doctor-led Session"
@@ -53,7 +62,6 @@ const HeroSection = () => {
     }
   ];
 
-  // Auto-slide functionality
   useEffect(() => {
     let interval;
     if (isAutoPlaying) {
@@ -76,7 +84,6 @@ const HeroSection = () => {
     setTimeout(() => setIsAutoPlaying(true), 5000);
   };
 
-  // Animation variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
@@ -93,14 +100,12 @@ const HeroSection = () => {
     }
   };
 
-  // Floating cards data
   const floatingCards = [
     { icon: FaSmile, text: "Happy Clients", value: "10K+", color: "#18606D", delay: 0 },
     { icon: FaStethoscope, text: "Doctor Approved", value: "100%", color: "#2A7F8F", delay: 0.2 },
     { icon: FaChartLine, text: "Results in", value: "30 Days", color: "#18606D", delay: 0.4 }
   ];
 
-  // Bullet points
   const bulletPoints = [
     { icon: FaUserMd, text: "Doctor-backed Recommendations", description: "Verified medical practitioners" },
     { icon: GiFruitBowl, text: "Personalized Gut Analysis", description: "Tailored to your unique profile" },
@@ -108,10 +113,10 @@ const HeroSection = () => {
   ];
 
   return (
-    <> 
-      <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#F4FAFB] via-white to-[#F4FAFB]">
-        {/* Organic background elements (hidden on mobile to avoid overflow/white blur) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
+    <>
+      <section className="relative  bg-[#F4FAFB] min-h-screen w-full overflow-x-hidden ">
+        {/* Organic background decorations (clipped by parent) */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
             animate={{ x: [0, 100, 0], y: [0, 50, 0] }}
             transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
@@ -123,17 +128,33 @@ const HeroSection = () => {
             className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-[#18606D] opacity-10 blur-3xl"
           />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#18606D] opacity-5 blur-3xl" />
+          
+          {bubbles.map((b, i) => (
+            <motion.div
+              key={i}
+              animate={{ y: [0, -30, 0], x: [0, i % 2 === 0 ? 20 : -20, 0] }}
+              transition={{ duration: 5 + i, repeat: Infinity, delay: i * 0.5 }}
+              className="absolute rounded-full bg-gradient-to-r from-[#CFE8EC] to-[#2A7F8F] opacity-20"
+              style={{
+                width: `${b.size}px`,
+                height: `${b.size}px`,
+                left: `${b.left}%`,
+                top: `${b.top}%`,
+              }}
+            />
+          ))}
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 lg:py-20 min-h-screen flex items-center">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center">
+        {/* Main container – edge-to-edge on mobile, padding only on inner content */}
+        <div className="w-full mx-auto px-0 sm:px-4 lg:px-8 py-12 md:py-16 lg:py-20 min-h-screen flex items-center ">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center w-full">
             
             {/* LEFT SIDE - CONTENT */}
             <motion.div 
               initial="hidden"
               animate="visible"
               variants={staggerChildren}
-              className="relative z-10 order-1 lg:order-1"
+              className="relative z-10 order-1 lg:order-1 px-4 sm:px-0"
             >
               {/* Urgency Badge */}
               <motion.div 
@@ -276,7 +297,7 @@ const HeroSection = () => {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="relative order-2 lg:order-2 mt-8 lg:mt-0"
+              className="relative order-2 lg:order-2 mt-8 lg:mt-0 px-4 sm:px-0"
             >
               {/* Main Carousel Container */}
               <div className="relative group">
@@ -375,7 +396,7 @@ const HeroSection = () => {
                 </div>
 
                 {/* Glass Effect Overlay */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#18606D]/10 to-[#2A7F8F]/10 rounded-2xl blur-xl -z-10" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#18606D]/5 to-[#2A7F8F]/5 rounded-2xl -z-10" />
               </div>
 
               {/* Desktop Floating Cards */}
@@ -464,7 +485,7 @@ const HeroSection = () => {
           </div>
         </div>
 
-        {/* Mobile Sticky CTA with Price - No extra margin/padding issues */}
+        {/* Mobile Sticky CTA */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-[#D9EEF2] p-3 shadow-lg z-50">
           <div className="flex flex-wrap gap-3">
             <motion.button
@@ -489,8 +510,7 @@ const HeroSection = () => {
           </div>
         </div>
 
-        {/* No extra spacer - the sticky CTA overlays content and bottom margin of the section handles spacing */}
-        <div className="lg:hidden h-0" />
+        {/* No extra spacer – the sticky CTA overlays the content */}
       </section>
       <ScheduleCallModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} productName="Special Consultation" productPrice={399} />
     </>

@@ -28,11 +28,8 @@ const Banners = () => {
   const duplicatedItems = [...items, ...items];
 
   return (
-    <div className="w-full border  py-4 md:py-6  overflow-hidden bg-gradient-to-b from-[#F4FAFB] to-white">
-      {/* Gradient fades on edges */}
-      <div className="absolute inset-y-0 left-0 w-16 md:w-32 bg-gradient-to-r from-[#F4FAFB] via-[#F4FAFB]/80 to-transparent z-10 pointer-events-none" />
-      <div className="absolute inset-y-0 right-0 w-16 md:w-32 bg-gradient-to-l from-[#F4FAFB] via-[#F4FAFB]/80 to-transparent z-10 pointer-events-none" />
-
+    <div className="w-full py-4 md:py-6  overflow-hidden bg-gradient-to-b from-[#F4FAFB] to-white">
+      
       {/* Marquee wrapper with overflow hidden */}
       <div className="relative overflow-hidden">
         <motion.div
