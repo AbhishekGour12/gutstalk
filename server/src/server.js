@@ -19,6 +19,7 @@ import contactRoutes from "./Routes/contactRoutes.js";
 import { createZoomMeetingLink } from "./services/zoomMeet.js";
 import ratingRoutes from "./Routes/ratingRoutes.js"
 import adminRoutes from "./Routes/adminRoutes.js";
+import dashboardRoutes from "./Routes/dashboardRoutes.js";
 import {Server} from "socket.io";
 import http from "http";
 
@@ -72,7 +73,7 @@ app.use("/api/booking", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/contact", contactRoutes)
 app.use("/api/ratings", ratingRoutes)
-
+app.use("/api/admin/dashboard", dashboardRoutes)
 app.get("/", (req, res) =>{
     res.send("Hello World");
 })

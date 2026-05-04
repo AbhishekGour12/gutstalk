@@ -99,6 +99,29 @@ export const getUserRating = async (req, res) => {
   }
 };
 
+export const getProductReviews = async (req, res) => {
+  try {
+   
+
+    const reviews = await Rating.find()
+      .populate({
+        path: "userId",
+        select: "username"
+      })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: reviews.length,
+      reviews
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch reviews"
+    });
+  }
+};
 
 
 

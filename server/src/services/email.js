@@ -1,20 +1,31 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.hostinger.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS 
+    user: "help@guttalks.in",
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false, // important for some Hostinger setups
   },
 });
 
+
 const sendEmail = async ({ to, subject, html }) => {
+  try{
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: "help@guttalks.in",
     to,
     subject,
     html,
   });
+}catch(error){
+  console.log('Error sending email:', error);
+  throw new Error('Failed to send email');
 };
+}
 
 export default sendEmail;

@@ -10,6 +10,8 @@ import CallNowSection from "./components/CallNowSection";
 import OfferModal from "./components/OfferModal";
 import Product from "./components/Product";
 import ScheduleCallModal from "./components/ScheduleCallModal";
+import Testimonial from "./components/Testimonial";
+import Banners from "./components/Banners";
 
 export default function Home() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -29,7 +31,9 @@ export default function Home() {
   return (
     <>
       <HeroSection />
+      <Banners/>
       <Product />
+      <Testimonial/>
       <InsightsSection />
       <ServicesSection />
       <ProblemSolutionSection/>

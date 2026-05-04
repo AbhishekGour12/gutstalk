@@ -3,7 +3,7 @@ import {
   submitRating, 
   getProductRatings, 
   getUserRating,
-  getProductReviewsq
+  getProductReviews
 } from '../controllers/ratingController.js';
 import { authMiddleware} from '../middleware/authMiddleware.js';
 

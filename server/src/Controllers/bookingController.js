@@ -154,7 +154,7 @@ if (userEmail) {
 
     res.json({ success: true, bookingId: booking.bookingId, meetLink });
   } catch (error) {
-    console.log('❌ initiateBooking error:', error.message);
+    console.log('❌ initiateBooking error:', error);
     res.status(500).json({ error: error.message });
   }
 };

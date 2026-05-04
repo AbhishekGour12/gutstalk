@@ -15,7 +15,7 @@ export const sendBookingConfirmationEmail = async (userEmail, bookingDetails) =>
   const invoiceNumber = bookingId;
   const subtotal = price;
   const gstRate = 0; // or actual GST if applicable
-  const gstAmount = 0;cd
+  const gstAmount = 0;
   const total = price;
   const paymentMethod = "Online (Razorpay)";
   const transactionId = bookingId.split('-').slice(1).join('-');

@@ -252,6 +252,10 @@ getShippingCharges: async (data) =>{
   const response = await api.post("/shipping/charge", data);
   return response.data;
 },
+ getDashboardStats: async () => {
+    const res = await api.get('/admin/dashboard/stats');
+    return res.data;
+  },
 
 };
 

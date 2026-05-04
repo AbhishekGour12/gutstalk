@@ -13,7 +13,7 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen }) {
 
   return (
     <aside
-      className={`fixed lg:relative z-40 w-64 h-screen bg-white border-r border-[#D9EEF2] shadow-lg transition-transform duration-300 ${
+      className={`fixed lg:relative z-40 w-64  min-h-screen bg-white border-r border-[#D9EEF2] shadow-lg transition-transform duration-300 ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       }`}
     >

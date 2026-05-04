@@ -24,4 +24,4 @@ const bookingSchema = new mongoose.Schema({
   reminderSent: { type: Boolean, default: false }
 }, { timestamps: true });
 
-export default mongoose.model('Booking', bookingSchema);
+export default mongoose.models.Booking || mongoose.model('Booking', bookingSchema);

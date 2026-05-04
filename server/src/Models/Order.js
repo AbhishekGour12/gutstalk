@@ -47,4 +47,4 @@ const orderSchema = new mongoose.Schema({
   orderStatus: { type: String, default: 'Processing' }
 }, { timestamps: true });
 
-export default mongoose.model('Order', orderSchema);
+export default mongoose.models.Order || mongoose.model('Order', orderSchema);

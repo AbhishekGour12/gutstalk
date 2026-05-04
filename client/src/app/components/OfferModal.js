@@ -8,21 +8,23 @@ import {
   FaCalendarCheck,
   FaGift,
   FaArrowRight,
-  FaBolt
+  FaBolt,
+  FaShieldAlt
 } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
 
-const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ added setShowScheduleModal prop
+const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isMounted, setIsMounted] = useState(false);
   const hasShownRef = useRef(false);
   const reopenIntervalRef = useRef(null);
+  const autoCloseTimeoutRef = useRef(null);
 
   // Storage keys
   const STORAGE_KEY = 'gutHealthOfferPopup';
   const LAST_SHOWN_KEY = 'gutHealthOfferPopupLastShown';
-  const CLOSED_TIMESTAMP_KEY = 'gutHealthOfferPopupClosed';
+  const CLOSED_UNTIL_KEY = 'gutHealthOfferPopupClosedUntil';
   const CONVERTED_KEY = `${STORAGE_KEY}_converted`;
 
   const shouldShowPopup = useCallback(() => {
@@ -30,13 +32,11 @@ const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ a
       const hasConverted = localStorage.getItem(CONVERTED_KEY);
       if (hasConverted === 'true') return false;
 
-      const closedTimestamp = localStorage.getItem(CLOSED_TIMESTAMP_KEY);
-      if (closedTimestamp) {
-        const closedTime = parseInt(closedTimestamp, 10);
-        const oneMinuteAgo = Date.now() - 60 * 1000;
-        if (closedTime > oneMinuteAgo) return false;
+      const closedUntil = localStorage.getItem(CLOSED_UNTIL_KEY);
+      if (closedUntil) {
+        const closedTime = parseInt(closedUntil, 10);
+        if (Date.now() < closedTime) return false;
       }
-
       return true;
     } catch (error) {
       return true;
@@ -49,39 +49,44 @@ const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ a
     } catch (error) {}
   }, []);
 
-  const saveClosedTimestamp = useCallback(() => {
+  const saveClosedUntil = useCallback(() => {
     try {
-      localStorage.setItem(CLOSED_TIMESTAMP_KEY, Date.now().toString());
+      const blockUntil = Date.now() + 5 * 60 * 1000; // 5 minutes
+      localStorage.setItem(CLOSED_UNTIL_KEY, blockUntil.toString());
     } catch (error) {}
   }, []);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
-    saveClosedTimestamp();
+    if (autoCloseTimeoutRef.current) clearTimeout(autoCloseTimeoutRef.current);
+    saveClosedUntil();
     if (onClose) onClose();
-  }, [saveClosedTimestamp, onClose]);
+  }, [saveClosedUntil, onClose]);
 
   const handleBookNowClick = useCallback(() => {
     try {
       localStorage.setItem(CONVERTED_KEY, 'true');
+      localStorage.removeItem(CLOSED_UNTIL_KEY);
     } catch (error) {}
     setIsOpen(false);
-    if (setShowScheduleModal) {
-      setShowScheduleModal(true);  // ✅ open the ScheduleCallModal
-    }
+    if (autoCloseTimeoutRef.current) clearTimeout(autoCloseTimeoutRef.current);
+    if (setShowScheduleModal) setShowScheduleModal(true);
     if (onBookNow) onBookNow();
   }, [onBookNow, setShowScheduleModal]);
 
-  // Auto close after 20 seconds
+  // Auto‑close after 2 minutes (120000 ms)
   useEffect(() => {
-    let autoCloseTimeout;
     if (isOpen) {
-      autoCloseTimeout = setTimeout(() => handleClose(), 20000);
+      autoCloseTimeoutRef.current = setTimeout(() => {
+        handleClose();
+      }, 120000);
     }
-    return () => clearTimeout(autoCloseTimeout);
+    return () => {
+      if (autoCloseTimeoutRef.current) clearTimeout(autoCloseTimeoutRef.current);
+    };
   }, [isOpen, handleClose]);
 
-  // Countdown timer
+  // Countdown timer (optional, just for visual urgency)
   useEffect(() => {
     if (!isOpen) return;
     const timer = setInterval(() => {
@@ -90,7 +95,7 @@ const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ a
     return () => clearInterval(timer);
   }, [isOpen]);
 
-  // Show popup on mount
+  // Show popup on mount after 2 seconds, if conditions met
   useEffect(() => {
     setIsMounted(true);
     if (hasShownRef.current) return;
@@ -106,66 +111,45 @@ const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ a
     return () => clearTimeout(showTimer);
   }, [shouldShowPopup, saveShownTimestamp]);
 
-  // Re-open every 1 minute
+  // Periodically check for showing popup (every 60 seconds) – only if not open and not in cooldown
   useEffect(() => {
     if (reopenIntervalRef.current) clearInterval(reopenIntervalRef.current);
 
     reopenIntervalRef.current = setInterval(() => {
       if (isOpen) return;
-      
       try {
         const hasConverted = localStorage.getItem(CONVERTED_KEY);
         if (hasConverted === 'true') return;
       } catch {}
-
       if (shouldShowPopup() && !isOpen) {
         setIsOpen(true);
         saveShownTimestamp();
         setTimeLeft(60);
       }
-    }, 10000);
+    }, 60000);
 
     return () => {
       if (reopenIntervalRef.current) clearInterval(reopenIntervalRef.current);
     };
   }, [isOpen, shouldShowPopup, saveShownTimestamp]);
 
-  const formatTime = (seconds) => {
-    const secs = seconds % 60;
-    return `${secs}s`;
-  };
+  const formatTime = (seconds) => `${seconds % 60}s`;
 
   const modalVariants = {
-    hidden: { opacity: 0, x: 50, y: 20, scale: 0.95 },
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
     visible: { 
       opacity: 1, 
-      x: 0, 
-      y: 0, 
-      scale: 1,
-      transition: { 
-        type: "spring",
-        damping: 25,
-        stiffness: 350,
-        duration: 0.3
-      }
+      scale: 1, 
+      y: 0,
+      transition: { type: "spring", damping: 25, stiffness: 350, duration: 0.3 }
     },
-    exit: { 
-      opacity: 0, 
-      x: 50, 
-      y: 20, 
-      scale: 0.95,
-      transition: { duration: 0.2 } 
-    }
+    exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 } }
   };
 
   const pulseAnimation = {
     animate: {
       scale: [1, 1.03, 1],
-      transition: {
-        duration: 1.2,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }
+      transition: { duration: 1.2, repeat: Infinity, ease: "easeInOut" }
     }
   };
 
@@ -174,108 +158,111 @@ const OfferModal = ({ onBookNow, onClose, setShowScheduleModal }) => {  // ✅ a
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          variants={modalVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="fixed bottom-6 right-6 z-50 w-[280px] sm:w-[320px]"
-        >
-          <div className="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-            {/* Top Gradient Bar */}
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#18606D] via-[#2A7F8F] to-[#CFE8EC]" />
-            
-            {/* Close Button */}
-            <button
-              onClick={handleClose}
-              className="absolute top-2 right-2 z-10 p-1 text-gray-300 hover:text-gray-500 hover:bg-gray-50 rounded-full transition-all"
-            >
-              <FaTimes className="w-3 h-3" />
-            </button>
-
-            {/* Content - Compact */}
-            <div className="p-3">
-              {/* Header */}
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#18606D] to-[#2A7F8F] flex items-center justify-center shadow-sm">
-                    <FaGift className="text-white text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded-full">
-                    <FaBolt className="text-amber-500 w-2.5 h-2.5" />
-                    <span className="text-[9px] font-semibold text-amber-700">For You</span>
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800 mt-0.5">
-                    ₹99 Consultation Offer
-                  </h3>
-                </div>
-              </div>
-
-              {/* Price */}
-              <div className="mb-2">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-bold text-[#18606D]">₹99</span>
-                  <span className="text-xs text-gray-400 line-through">₹399</span>
-                  <span className="text-[9px] bg-green-50 text-green-600 px-1 py-0.5 rounded">-75%</span>
-                </div>
-              </div>
-
-              {/* Features - Inline */}
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                <span className="text-[9px] bg-[#CFE8EC]/50 text-[#18606D] px-1.5 py-0.5 rounded-full">✓ Personalized</span>
-                <span className="text-[9px] bg-[#CFE8EC]/50 text-[#18606D] px-1.5 py-0.5 rounded-full">✓ Doctor-backed</span>
-                <span className="text-[9px] bg-[#CFE8EC]/50 text-[#18606D] px-1.5 py-0.5 rounded-full">✓ 30-day results</span>
-              </div>
-
-              {/* Trust */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <FaStar key={i} className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                  ))}
-                  <span className="text-[9px] font-medium text-gray-600 ml-0.5">4.8</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MdVerified className="w-2.5 h-2.5 text-[#18606D]" />
-                  <span className="text-[9px] text-gray-500">10k+ users</span>
-                </div>
-                <span className="text-[8px] text-gray-400">✨ 1st time</span>
-              </div>
-
-              {/* CTA Button */}
-              <div className="flex gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  animate={pulseAnimation.animate}
-                  onClick={handleBookNowClick}  // ✅ now opens schedule modal
-                  className="flex-1 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white font-semibold py-1.5 px-3 rounded-lg text-[11px] flex items-center justify-center gap-1 shadow-sm"
-                >
-                  <FaCalendarCheck className="w-2.5 h-2.5" />
-                  Book ₹99
-                  <FaArrowRight className="w-2 h-2" />
-                </motion.button>
-                
-                <button
-                  onClick={handleClose}
-                  className="px-2 py-1.5 text-[9px] text-gray-400 hover:text-gray-500 font-medium"
-                >
-                  Maybe later
-                </button>
-              </div>
+        <div className="fixed inset-0 flex items-center justify-center z-[9999]">
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="relative w-[320px] sm:w-[380px] mx-auto"
+          >
+            <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+              {/* Top Gradient Bar */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#18606D] via-[#2A7F8F] to-[#CFE8EC]" />
               
-              {/* Small text */}
-              <p className="text-center text-[7px] text-gray-300 mt-1.5">
-                ⚡ Limited slots • First-time users only
-              </p>
-            </div>
-          </div>
+              {/* Close Button */}
+              <button
+                onClick={handleClose}
+                className="absolute top-3 right-3 z-10 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <FaTimes className="w-3.5 h-3.5" />
+              </button>
 
-          {/* Arrow */}
-          <div className="absolute -top-1 right-4 w-3 h-3 bg-white rotate-45 border-t border-l border-gray-100" />
-        </motion.div>
+              {/* Main Content */}
+              <div className="p-4">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#18606D] to-[#2A7F8F] flex items-center justify-center shadow-md">
+                      <FaGift className="text-white text-xl" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 rounded-full">
+                      <FaBolt className="text-amber-500 w-3 h-3" />
+                      <span className="text-[10px] font-semibold text-amber-700">Limited Time</span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-800 mt-0.5">
+                      ₹99 Consultation Offer
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="mb-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-[#18606D]">₹99</span>
+                    <span className="text-sm text-gray-400 line-through">₹399</span>
+                    <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded-full font-semibold">-75%</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">For first‑time users only</p>
+                </div>
+
+                {/* Features */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="text-[10px] bg-[#CFE8EC]/50 text-[#18606D] px-2 py-1 rounded-full font-medium">✓ Personalized Plan</span>
+                  <span className="text-[10px] bg-[#CFE8EC]/50 text-[#18606D] px-2 py-1 rounded-full font-medium">✓ Certified Experts</span>
+                  <span className="text-[10px] bg-[#CFE8EC]/50 text-[#18606D] px-2 py-1 rounded-full font-medium">✓ 30-min Session</span>
+                </div>
+
+                {/* Trust Indicators */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <FaStar key={i} className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-600">4.8 (10k+ users)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MdVerified className="w-3 h-3 text-[#18606D]" />
+                    <span className="text-[10px] text-gray-500">Trusted by experts</span>
+                  </div>
+                </div>
+
+                {/* Timer */}
+                <div className="mb-3 text-center">
+                  <span className="text-xs text-gray-500">⏱️ Offer expires in </span>
+                  <span className="text-sm font-bold text-[#18606D]">
+                    {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} min
+                  </span>
+                </div>
+
+                {/* CTA Button */}
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    animate={pulseAnimation.animate}
+                    onClick={handleBookNowClick}
+                    className="flex-1 bg-gradient-to-r from-[#18606D] to-[#2A7F8F] text-white font-semibold py-2 px-3 rounded-lg text-sm flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <FaCalendarCheck className="w-3.5 h-3.5" />
+                    Book ₹99 Consultation
+                    <FaArrowRight className="w-3 h-3" />
+                  </motion.button>
+                  <button
+                    onClick={handleClose}
+                    className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 font-medium"
+                  >
+                    No thanks
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );
