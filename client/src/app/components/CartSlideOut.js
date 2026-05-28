@@ -40,7 +40,7 @@ const CartSlideOut = () => {
   const [showCODSummary, setShowCODSummary] = useState(false); 
 
   const codFee = 52;
-
+  
   // Load Products Logic
   useEffect(() => {
     const loadProducts = async () => {
@@ -88,7 +88,8 @@ const CartSlideOut = () => {
   const [token, setToken] = useState(null);
   const onClose = () => setIsCartOpen(false);
 
-  useEffect(() => { fetchCart(); }, [user]);
+
+useEffect(() => { fetchCart(); }, [user]);
 
   useEffect(() => {
     const mergeCart = async () => {
@@ -136,18 +137,23 @@ const CartSlideOut = () => {
   // ================================
   // 3. CALCULATION
   // ================================
-  const calculateUnitFinalPrice = (product) => {
-    if (!product) return 0;
-    const price = product.salePrice ?? product.price ?? product.originalPrice ?? 0;
-    return Number(price);
-  };
+  const calculateUnitFinalPrice = (item) => {
+  if (!item.product) return 0;
+  // Use variant price if available
+  if (item.variant && item.variant.price) {
+    return Number(item.variant.price);
+  }
+  const price = item.product.salePrice ?? item.product.price ?? item.product.originalPrice ?? 0;
+  return Number(price);
+};
 
-  const subtotal = useMemo(() => {
-    return mappedCart.reduce((acc, item) => {
-      const unitPrice = calculateUnitFinalPrice(item.product);
-      return acc + (unitPrice * item.quantity);
-    }, 0);
-  }, [mappedCart]);
+
+ const subtotal = useMemo(() => {
+  return mappedCart.reduce((acc, item) => {
+    const unitPrice = calculateUnitFinalPrice(item); // ✅ pass item, not item.product
+    return acc + (unitPrice * item.quantity);
+  }, 0);
+}, [mappedCart]);
 
   const totalWeight = useMemo(() => 
     mappedCart.reduce((sum, item) => sum + Number(item?.product?.weight || 0.2) * item.quantity, 0), 
@@ -495,11 +501,13 @@ const CartSlideOut = () => {
         <>
           <motion.div
             className="fixed inset-x-0 bottom-0 top-[90px] bg-black/40 z-9999"
+            style={{zIndex: 999999}}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
             className="fixed right-0 top-[90px] h-[calc(100vh-90px)] max-w-md w-full bg-white shadow-xl z-9999"
+           style={{ zIndex: 1000000 }}
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
           >
             {/* Header */}
@@ -516,24 +524,27 @@ const CartSlideOut = () => {
               {checkoutStep === "cart" && (
                 <>
                   {mappedCart.length === 0 ? <p className="text-center text-gray-500">Cart Empty</p> : (
-                    mappedCart.map((item) => {
-                      const unitPrice = calculateUnitFinalPrice(item.product);
-                      return (
-                        <div key={item.product._id} className="flex gap-3 bg-gray-100 p-3 rounded-lg mb-3">
-                          <img src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.product.imageUrls[0]}`} className="w-20 h-20 rounded-lg object-cover" />
-                          <div className="flex-1">
-                            <p className="font-semibold">{item.product.name}</p>
-                            <div><span className="font-bold">₹{unitPrice.toFixed(2)}</span></div>
-                            <div className="flex items-center gap-2 mt-2">
-                              <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)} className="px-2 bg-gray-200 rounded"><FaMinus/></button>
-                              <span>{item.quantity}</span>
-                              <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)} className="px-2 bg-gray-200 rounded"><FaPlus/></button>
-                              <FaTrash className="text-teal-600 ml-auto cursor-pointer" onClick={() => removeFromCart(item.product._id)}/>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
+                  mappedCart.map((item) => {
+  const unitPrice = calculateUnitFinalPrice(item);
+  return (
+    <div key={item.product._id} className="flex gap-3 bg-gray-100 p-3 rounded-lg mb-3">
+      <img src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.product.imageUrls[0]}`} className="w-20 h-20 rounded-lg object-cover" />
+      <div className="flex-1">
+        <p className="font-semibold">{item.product.name}</p>
+        {item.variant && (
+          <p className="text-xs text-[#64748B]">Variant: {item.variant.name}</p>
+        )}
+        <div><span className="font-bold">₹{unitPrice.toFixed(2)}</span></div>
+        <div className="flex items-center gap-2 mt-2">
+          <button onClick={() => updateQuantity(item._id, item.quantity - 1)} className="px-2 bg-gray-200 rounded"><FaMinus/></button>
+          <span>{item.quantity}</span>
+          <button onClick={() => updateQuantity(item._id, item.quantity + 1)} className="px-2 bg-gray-200 rounded"><FaPlus/></button>
+          <FaTrash className="text-teal-600 ml-auto cursor-pointer" onClick={() => removeFromCart(item._id)}/>
+        </div>
+      </div>
+    </div>
+  );
+})
                   )}
                   {mappedCart.length > 0 && (
                     <button onClick={() => setCheckoutStep("address")} className="w-full bg-[#0f766e] text-white py-3 rounded-xl mt-4">Proceed to Address</button>

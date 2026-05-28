@@ -12,6 +12,7 @@ import Product from "./components/Product";
 import ScheduleCallModal from "./components/ScheduleCallModal";
 import Testimonial from "./components/Testimonial";
 import Banners from "./components/Banners";
+import ElfsightGoogleReviews from "./components/ElfsightGoogleReviews";
 
 export default function Home() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -33,6 +34,7 @@ export default function Home() {
       <HeroSection />
       <Banners/>
       <Product />
+      <ElfsightGoogleReviews/>
       <Testimonial/>
       <InsightsSection />
       <ServicesSection />

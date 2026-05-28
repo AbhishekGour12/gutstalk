@@ -11,14 +11,11 @@ import { authMiddleware} from '../Middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.get('/', getUserInterests)
+router.post('/', authMiddleware, addUserInterest);
 
-router.route('/')
-  .get(getUserInterests)
-  .post(addUserInterest);
-
-router.route('/:productId')
-  .get(checkUserInterest)
-  .delete(removeUserInterest);
-router.route('/likeCount/:productId').get(getProductLikesCount)
+router.get('/:productId', authMiddleware, checkUserInterest)
+ router.delete('/:productId', authMiddleware, removeUserInterest);
+  
+router.get('/likeCount/:productId', getProductLikesCount);
 export default router;

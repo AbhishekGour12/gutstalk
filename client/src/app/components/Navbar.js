@@ -175,7 +175,7 @@ const Navbar = () => {
           {/* Desktop Auth/CTA Section */}
           <div className="hidden md:flex items-center gap-3">
             <button 
-              onClick={() => setIsCartOpen(true)} 
+              onClick={() => setIsCartOpen(true)  } 
               className="relative p-2 rounded-full hover:bg-[#F4FAFB] transition"
             >
               <FiShoppingCart className="text-[#18606D] text-xl" />

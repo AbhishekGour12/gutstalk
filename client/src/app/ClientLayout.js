@@ -5,11 +5,13 @@ import Navbar from "./components/Navbar";
 import CartSlideOut from "./components/CartSlideOut";
 import Footer from "./components/Footer";
 import TawkTo from "./components/TwakTo";
+import { useCart } from "./context/CartContext";
+import { useEffect } from "react";
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
+  
 
-  // All routes where components should hide
   const hiddenRoutes = [
     "/login",
     "/signup",
@@ -20,16 +22,16 @@ export default function ClientLayout({ children }) {
     "/refund-policy",
   ];
 
-  // Check nested routes also
   const shouldHide = hiddenRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
+ 
   return (
     <>
       {!shouldHide && <Navbar />}
-      {!shouldHide && <CartSlideOut />}
       {!shouldHide && <TawkTo />}
+      {!shouldHide && <CartSlideOut />}
 
       {children}
 

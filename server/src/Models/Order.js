@@ -6,7 +6,13 @@ const orderItemSchema = new mongoose.Schema({
   image: String,
   quantity: Number,
   priceAtPurchase: Number,
-  weight: { type: Number, default: 0.5 }
+  weight: { type: Number, default: 0.5 },
+  variant: {
+    type: { type: String},
+    name: String,
+    price: Number,
+    originalPrice: Number
+  }
 });
 
 const orderSchema = new mongoose.Schema({

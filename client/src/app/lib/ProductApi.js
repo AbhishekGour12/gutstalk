@@ -175,22 +175,24 @@ export const ProductApi = {
   return response.data;
 },
 
- addToCart: async (productId, quantity) => {
-  const response = await api.post('/cart', {productId: productId, quantity:  quantity});
+ addToCart: async (productId, quantity, variant) => {
+  const response = await api.post('/cart', { productId, quantity, variant });
   return response.data;
 },
-
 updateCartItem: async (itemId, quantity) => {
-  const response = await api.put(`/cart/${itemId}`, {quantity});
+  const response = await api.put(`/cart/item/${itemId}`, { quantity });
   return response.data;
 },
-
- removeFromCart: async (itemId) => {
-  const response = await api.delete(`/cart/${itemId}`);
+removeFromCart: async (itemId) => {
+  const response = await api.delete(`/cart/item/${itemId}`);
   return response.data;
 },
   clearCart: async () => {
   const response = await api.delete('/cart');
+  return response.data;
+},
+addToCartWithReplace: async (productId, quantity, variant) => {
+  const response = await api.post('/cart/replace', { productId, quantity, variant });
   return response.data;
 },
 // User Interest methods
@@ -256,7 +258,9 @@ getShippingCharges: async (data) =>{
     const res = await api.get('/admin/dashboard/stats');
     return res.data;
   },
+  
 
 };
+
 
 export default ProductApi;

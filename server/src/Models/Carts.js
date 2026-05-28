@@ -12,9 +12,17 @@ const CartSchema = new mongoose.Schema(
           required: true
         },
         quantity: { type: Number, required: true, default: 1 },
+        variant: {
+          type: { type: String },
+          name: String,
+          price: Number,
+          originalPrice: Number
+        },
+      
         addedAt: { type: Date, default: Date.now }
       }
     ],
+   
     totalAmount: { type: Number, default: 0 }
   },
   { timestamps: true }
@@ -23,14 +31,14 @@ const CartSchema = new mongoose.Schema(
 // FIXED total calculation (product.price now comes from DB)
 CartSchema.pre("save", async function () {
   let total = 0;
-
   for (const item of this.items) {
-    const product = await Product.findById(item.product);
-    if (product) {
-      total += product.price * item.quantity;
+    let price = item.variant?.price;
+    if (!price) {
+      const product = await Product.findById(item.product);
+      price = product?.salePrice || product?.price || 0;
     }
+    total += price * item.quantity;
   }
-
   this.totalAmount = total;
 });
 

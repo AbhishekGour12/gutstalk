@@ -1,14 +1,11 @@
 import Cart from '../Models/Carts.js';
-import {Product} from '../Models/Product.js'; // 👈 Import Product model
+import {Product} from '../Models/Product.js';
 import mongoose from 'mongoose';
 
-// Helper: resolve product identifier (id or slug) to ObjectId
 const resolveProductId = async (identifier) => {
-  // If it's already a valid ObjectId, return it
   if (mongoose.Types.ObjectId.isValid(identifier)) {
     return identifier;
   }
-  // Otherwise treat as slug and find product
   const product = await Product.findOne({ slug: identifier }).select('_id');
   if (!product) throw new Error(`Product not found for slug: ${identifier}`);
   return product._id;
@@ -17,9 +14,9 @@ const resolveProductId = async (identifier) => {
 export const addToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    let { productId, quantity } = req.body;
-
-    // ✅ Resolve product identifier to actual ObjectId
+    let { productId, quantity, variant } = req.body; // 👈 accept variant
+     
+    // Resolve product identifier (slug or ObjectId)
     const resolvedProductId = await resolveProductId(productId);
 
     let cart = await Cart.findOne({ userId });
@@ -28,147 +25,140 @@ export const addToCart = async (req, res) => {
       cart = new Cart({ userId, items: [] });
     }
 
-    const item = cart.items.find(
-      (i) => i.product.toString() === resolvedProductId.toString()
+    // Find existing item with same product and same variant
+    const existingItemIndex = cart.items.findIndex(
+      (item) =>
+        item.product.toString() === resolvedProductId.toString() &&
+        JSON.stringify(item.variant) === JSON.stringify(variant)
     );
 
-    if (item) {
-      item.quantity += quantity;
+    if (existingItemIndex !== -1) {
+      cart.items[existingItemIndex].quantity += quantity;
     } else {
-      cart.items.push({ product: resolvedProductId, quantity });
+      cart.items.push({
+        product: resolvedProductId,
+        quantity,
+        variant: variant || null,
+      });
     }
 
+    // Recalculate totalAmount (pre-save hook will run)
     await cart.save();
 
-    const populatedCart = await Cart.findOne({ userId })
-      .populate("items.product");
-
-    res.json({
-      message: "Item added",
-      cart: populatedCart
-    });
+    const populatedCart = await Cart.findOne({ userId }).populate("items.product");
+    res.json({ message: "Item added", cart: populatedCart });
   } catch (err) {
-
-
+    console.error("addToCart error:", err);
     res.status(500).json({ message: err.message });
-    next(err);
   }
 };
 
 export const updateCartItem = async (req, res) => {
   try {
     const userId = req.user.id;
-    let { productId } = req.params;
-    const { quantity } = req.body;
+    const { itemId } = req.params;           // ✅ Changed from productId
+    const { quantity } = req.body;           // No need for variant
 
-    if (!productId) 
-      return res.status(400).json({ message: "Missing productId" });
-
+    if (!itemId) return res.status(400).json({ message: "Missing itemId" });
     const q = Number(quantity);
+    if (isNaN(q)) return res.status(400).json({ message: "Invalid quantity" });
 
-    // Helper to handle update by either item._id or product._id (slug or id)
-    const updateCart = async (filter) => {
-      if (q === 0) {
-        // Remove item
-        return await Cart.findOneAndUpdate(
-          { userId, ...filter },
-          { $pull: { items: filter } },
-          { new: true }
-        ).populate({ path: "items.product", select: "name price imageUrls" });
-      } else {
-        // Update quantity
-        return await Cart.findOneAndUpdate(
-          { userId, ...filter },
-          { $set: { "items.$.quantity": q } },
-          { new: true }
-        ).populate({ path: "items.product", select: "name price imageUrls" });
-      }
-    };
+    const cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    let updatedCart;
+    const item = cart.items.id(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
 
-    // Try treating itemId as item._id first
-    if (mongoose.Types.ObjectId.isValid(productId)) {
-      updatedCart = await updateCart({ "items._id": productId });
-      if (updatedCart) return res.json({ cart: updatedCart });
-    }
-
-    // If not found, treat itemId as product slug or product ID
-    let productObjectId;
-    if (mongoose.Types.ObjectId.isValid(productId)) {
-      productObjectId = productId;
+    if (q <= 0) {
+      // Remove item if quantity is 0 or negative
+      item.deleteOne();
     } else {
-      const product = await Product.findOne({ slug: productId }).select('_id');
-      if (product) productObjectId = product._id;
+      item.quantity = q;
     }
 
-    if (productObjectId) {
-      if (q === 0) {
-        updatedCart = await Cart.findOneAndUpdate(
-          { userId },
-          { $pull: { items: { product: productObjectId } } },
-          { new: true }
-        ).populate("items.product");
-      } else {
-        updatedCart = await Cart.findOneAndUpdate(
-          { userId, "items.product": productObjectId },
-          { $set: { "items.$.quantity": q } },
-          { new: true }
-        ).populate("items.product");
-      }
-    }
-
-    if (!updatedCart) {
-      return res.status(404).json({ message: "Item not found" });
-    }
-
-    return res.json({ cart: updatedCart });
+    await cart.save();
+    await cart.populate("items.product");
+    res.json({ cart });
   } catch (error) {
     console.error("updateCartItem error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-export const removeFromCart = async (req, res) => {
+// Add this new route before the existing addToCart
+export const addToCartWithReplace = async (req, res) => {
   try {
     const userId = req.user.id;
-    let { productId } = req.params;
-
-    const cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
-
-    // Resolve productId to product ObjectId if it's a slug
-    let productObjectId = null;
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-      const product = await Product.findOne({ slug: productId }).select('_id');
-      if (product) productObjectId = product._id;
+    let { productId, quantity, variant } = req.body;
+    const resolvedProductId = await resolveProductId(productId);
+    
+    let cart = await Cart.findOne({ userId });
+    if (!cart) cart = new Cart({ userId, items: [] });
+    
+    // Find existing item with same product (any variant)
+    const existingIndex = cart.items.findIndex(
+      item => item.product.toString() === resolvedProductId.toString()
+    );
+    
+    if (existingIndex !== -1) {
+      const existingVariant = cart.items[existingIndex].variant;
+      const sameVariant = JSON.stringify(existingVariant) === JSON.stringify(variant);
+      
+      if (sameVariant) {
+        // Same variant → update quantity
+        cart.items[existingIndex].quantity = quantity;
+      } else {
+        // Different variant → replace
+        cart.items[existingIndex] = {
+          product: resolvedProductId,
+          quantity,
+          variant: variant || null,
+        };
+      }
+    } else {
+      cart.items.push({
+        product: resolvedProductId,
+        quantity,
+        variant: variant || null,
+      });
     }
-
-    // Filter out items matching either item._id or product._id (resolved)
-    cart.items = cart.items.filter((item) => {
-      const matchesProductId = item._id.toString() === productId;
-      const matchesProductSlug = productObjectId 
-        ? item.product.toString() === productObjectId.toString()
-        : item.product.toString() === productId;
-      return !matchesProductId && !matchesProductSlug;
-    });
-
+    
     await cart.save();
-
-    const populatedCart = await Cart.findOne({ userId }).populate("items.product");
-    res.json({ cart: populatedCart });
+    const populated = await Cart.findOne({ userId }).populate("items.product");
+    res.json({ cart: populated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// clearCart remains unchanged
+export const removeFromCart = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { itemId } = req.params;           // ✅ Changed from productId
+
+    if (!itemId) return res.status(400).json({ message: "Missing itemId" });
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ message: "Cart not found" });
+
+    const item = cart.items.id(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    item.deleteOne();
+    await cart.save();
+    await cart.populate("items.product");
+    res.json({ cart });
+  } catch (error) {
+    console.error("removeFromCart error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// clearCart and getCart remain unchanged (but getCart already populates product)
 export const clearCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.user.id });
-    if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
-    }
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
     cart.items = [];
     await cart.save();
     res.json({ message: 'Cart cleared successfully' });
@@ -182,12 +172,8 @@ export const getCart = async (req, res) => {
     const userId = req.user.id;
     let cart = await Cart.findOne({ userId }).populate("items.product");
     if (cart) {
-      // Remove items where product was deleted
-      const validItems = cart.items.filter(item => item.product !== null);
-      if (validItems.length !== cart.items.length) {
-        cart.items = validItems;
-        await cart.save();
-      }
+      cart.items = cart.items.filter(item => item.product !== null);
+      await cart.save();
     }
     res.json({ cart });
   } catch (err) {

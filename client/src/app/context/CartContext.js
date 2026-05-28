@@ -7,15 +7,11 @@ import { useSelector } from "react-redux";
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]); // unified cart format
+  const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-
   const user = useSelector((state) => state.auth.user);
 
-  
-  // ---------------------------------------------------------
-  // UTIL: Save & Load guest cart from localStorage
-  // ---------------------------------------------------------
+  // Load guest cart from localStorage
   const loadGuestCart = () => {
     try {
       const local = JSON.parse(localStorage.getItem("guest_cart")) || [];
@@ -29,30 +25,22 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem("guest_cart", JSON.stringify(cart));
   };
 
-  // ---------------------------------------------------------
-  // FETCH CART  (AUTO: Guest + User)
-  // ---------------------------------------------------------
+  // Fetch cart (guest or user)
   const fetchCart = async () => {
     if (!user) {
-      // GUEST CART
       setCartItems(loadGuestCart());
       return;
     }
-
     try {
-      // USER CART
       const res = await ProductApi.getCart();
-      const serverCart = res?.cart?.items || [];
-      setCartItems(serverCart);
-
-      // MERGE GUEST CART INTO USER CART IF EXISTS
+      setCartItems(res?.cart?.items || []);
       const guestCart = loadGuestCart();
       if (guestCart.length > 0) {
         for (let g of guestCart) {
-          await ProductApi.addToCart(g.productId, g.quantity);
+          await ProductApi.addToCart(g.productId, g.quantity, g.variant);
         }
         localStorage.removeItem("guest_cart");
-        fetchCart(); // refresh after sync
+        fetchCart();
       }
     } catch (err) {
       console.error("Cart fetch error:", err);
@@ -64,107 +52,101 @@ export const CartProvider = ({ children }) => {
     fetchCart();
   }, [user]);
 
-  // ---------------------------------------------------------
-  // ADD TO CART (Guest & User both)
-  // ---------------------------------------------------------
-  const addToCart = async (productId, quantity = 1) => {
-    try {
-      if (!user) {
-        // GUEST CART MODE
-        let cart = loadGuestCart();
-
-        const exists = cart.find((item) => item.productId === productId);
-
-        if (exists) {
-          exists.quantity += quantity;
-        } else {
-          cart.push({ productId, quantity });
-        }
-
-        saveGuestCart(cart);
-        setCartItems(cart);
-        setIsCartOpen(true);
-
-        return toast.success("Added to cart!");
-      }
-
-      // USER CART MODE
-      const res = await ProductApi.addToCart(productId, quantity);
-      setCartItems(res?.cart?.items || []);
-      setIsCartOpen(true);
-
-      toast.success("Added to cart!");
-    } catch (err) {
-      toast.error(err?.message || "Failed to add item");
-    }
-  };
-
-  // ---------------------------------------------------------
-  // UPDATE QUANTITY (Guest & User)
-  // ---------------------------------------------------------
-  const updateQuantity = async (productId, quantity) => {
-    if (quantity <= 0) return removeFromCart(productId);
-
-    try {
-      if (!user) {
-        let cart = loadGuestCart();
-        cart = cart.map((item) =>
-          item.productId === productId ? { ...item, quantity } : item
-        );
-
-        saveGuestCart(cart);
-        setCartItems(cart);
-        return;
-      }
-      console.log(productId, quantity)
-
-      const res = await ProductApi.updateCartItem(productId, quantity);
-      setCartItems(res?.cart?.items || []);
-    } catch (err) {
-      toast.error(err?.message || "Failed to update cart item");
-    }
-  };
-
-  // ---------------------------------------------------------
-  // REMOVE FROM CART (Guest & User)
-  // ---------------------------------------------------------
-  const removeFromCart = async (productId) => {
-    try {
-      if (!user) {
-        let cart = loadGuestCart().filter((i) => i.productId !== productId);
-        saveGuestCart(cart);
-        setCartItems(cart);
-        toast.success("Item removed");
-        return;
-      }
-
-      const res = await ProductApi.removeFromCart(productId);
-      setCartItems(res?.cart?.items || []);
-      toast.success("Removed item");
-    } catch (err) {
-      toast.error(err?.message || "Failed to remove cart item");
-    }
-  };
-  // ---------------------------------------------------------
-// CLEAR CART (After Successful Order)
-// ---------------------------------------------------------
-const clearCart = async () => {
+  // ADD TO CART (with variant support)
+ const addToCart = async (productId, quantity = 1, variant = null) => {
   try {
     if (!user) {
-      // Guest cart
-      localStorage.removeItem("guest_cart");
-      setCartItems([]);
-      return;
+      // GUEST CART: replace existing variant or add new
+      let cart = loadGuestCart();
+      const existingIndex = cart.findIndex(item => item.productId === productId);
+      
+      if (existingIndex !== -1) {
+        const existing = cart[existingIndex];
+        const sameVariant = JSON.stringify(existing.variant) === JSON.stringify(variant);
+        if (sameVariant) {
+          // Same variant → update quantity
+          cart[existingIndex].quantity = quantity;
+        } else {
+          // Different variant → replace the whole item
+          cart[existingIndex] = { productId, quantity, variant };
+        }
+      } else {
+        cart.push({ productId, quantity, variant });
+      }
+      
+      saveGuestCart(cart);
+      setCartItems(cart);
+      setIsCartOpen(true);
+      return toast.success("Cart updated!");
     }
 
-    // Logged-in user cart
-    await ProductApi.clearCart(); // API should empty cart
-    setCartItems([]);
+    // LOGGED-IN USER: call backend with replacement logic
+    const res = await ProductApi.addToCartWithReplace(productId, quantity, variant);
+    setCartItems(res?.cart?.items || []);
+    setIsCartOpen(true);
+    toast.success("Cart updated!");
   } catch (err) {
-    console.error("Failed to clear cart", err);
+    toast.error(err?.message || "Failed to update cart");
+  }
+};
+  // Update quantity (supports variant – we need to identify item by both productId and variant)
+  // Update quantity using item ID
+const updateQuantity = async (itemId, quantity) => {
+  if (quantity <= 0) return removeFromCart(itemId);
+  
+  try {
+    if (!user) {
+      let cart = loadGuestCart();
+      const item = cart.find(i => i._id === itemId);
+      if (item) {
+        item.quantity = quantity;
+        saveGuestCart(cart);
+        setCartItems(cart);
+      }
+      return;
+    }
+    
+    const res = await ProductApi.updateCartItem(itemId, quantity);
+    setCartItems(res?.cart?.items || []);
+  } catch (err) {
+    toast.error(err?.message || "Failed to update");
   }
 };
 
+// Remove using item ID
+const removeFromCart = async (itemId) => {
+  try {
+    if (!user) {
+      let cart = loadGuestCart().filter(item => item._id !== itemId);
+      saveGuestCart(cart);
+      setCartItems(cart);
+      toast.success("Item removed");
+      return;
+    }
+    
+    const res = await ProductApi.removeFromCart(itemId);
+    setCartItems(res?.cart?.items || []);
+    toast.success("Removed item");
+  } catch (err) {
+    toast.error(err?.message || "Failed to remove");
+  }
+};
+
+  
+
+  const clearCart = async () => {
+    try {
+      if (!user) {
+        localStorage.removeItem("guest_cart");
+        setCartItems([]);
+        return;
+      }
+      await ProductApi.clearCart();
+      setCartItems([]);
+    } catch (err) {
+      console.error("Failed to clear cart", err);
+    }
+  };
 
   return (
     <CartContext.Provider

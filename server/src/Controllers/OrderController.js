@@ -38,28 +38,19 @@ let cartItems = [];
      
     // Fetch cart
    
-   if (userId) {
+   // For guest orders (no userId)
+if (!userId) {
+  if (!items || items.length === 0) throw new Error("No items provided");
+  cartItems = items.map((item) => ({
+    product: item.product,
+    quantity: item.quantity,
+    variant: item.variant || null
+  }));
+} else {
+  // For logged-in users, fetch from cart
   const cart = await Cart.findOne({ userId: user._id }).populate("items.product");
-
-  if (!cart || cart.items.length === 0)
-    throw new Error("Your cart is empty");
-
+  if (!cart || cart.items.length === 0) throw new Error("Your cart is empty");
   cartItems = cart.items;
-}else {
-  if (!items || items.length === 0)
-    throw new Error("No items provided");
-
-  cartItems = await Promise.all(
-    items.map(async (item) => {
-      const product = await Product.findById(item.product._id || item.product);
-      if (!product) throw new Error("Product not found");
-
-      return {
-        product,
-        quantity: item.quantity
-      };
-    })
-  );
 }
   
 
@@ -74,7 +65,11 @@ let cartItems = [];
     
     if (!cartItems || cartItems.length === 0) throw new Error("Your cart is empty");
 
-    const subtotal = cartItems.reduce((sum, item) => sum + item.product.salePrice * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+  const price = item.variant?.price ?? item.product.salePrice;
+  return sum + (price * item.quantity);
+}, 0);
+
     const totalAmount = finalAmount;
     const paymentStatus = paymentMethod === "online" ? "Paid" : "Pending";
  
@@ -87,14 +82,19 @@ let cartItems = [];
     if (totalWeight > 0) calculatedWeight = totalWeight;
    
     // Format items
-    const orderItems = cartItems.map((item) => ({
-      productId: item.product._id,
-      name: item.product.name,
-      image: item.product.imageUrls?.[0] || "",
-      priceAtPurchase: item.product.salePrice,
-      quantity: item.quantity,
-      weight: item.product.weight || 0.2
-    }));
+    // Format items
+const orderItems = cartItems.map((item) => {
+  const price = item.variant?.price ?? item.product.salePrice;
+  return {
+    productId: item.product._id,
+    name: item.product.name,
+    image: item.product.imageUrls?.[0] || "",
+    priceAtPurchase: price,
+    quantity: item.quantity,
+    weight: item.product.weight || 0.2,
+    variant: item.variant || null
+  };
+});
 
     // Prepare order object for Shiprocket
     let plainOrder = {
@@ -132,7 +132,7 @@ let cartItems = [];
     if (!shipOrder || !shipOrder.order_id) throw new Error("Shiprocket order failed");
 
     const awbRes = await assignAWB(shipOrder.shipment_id);
-     
+     **/
     // -----------------------------------
     // NOW SAVE ORDER IN DB
     // -----------------------------------
@@ -148,16 +148,13 @@ let cartItems = [];
       paymentMethod,
       paymentStatus,
       razorpay: paymentDetails || {},
-      deliveryStatus: "Packed",
+      customStatus: "order_placed",
 
-      shiprocketStatus: "Order Created",
-      shiprocketOrderId: shipOrder.order_id,
-      shiprocketShipmentId: shipOrder.shipment_id,
-      shiprocketAWB: awbRes?.awb_code || null
+      shiprocketStatus: "Order Created"
     });
 
     await newOrder.save({ session });
-    */
+    
 // -----------------------------------
 // SAVE PAYMENT INFO (CASH / COD / OFFLINE)
 // -----------------------------------
@@ -176,7 +173,8 @@ if (paymentMethod === "online") {
   newOrder.payoutstatus = "SUCCESS";
   
 }
-  */
+  **/
+  
 
 
 
@@ -226,7 +224,7 @@ if (paymentMethod === "online") {
       success: true,
       message: "Order placed & synced with Shiprocket",
       order: newOrder,
-      shiprocket: shipOrder
+      
     });
   }catch(err){
     console.log("order", err.message)

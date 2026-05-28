@@ -1,5 +1,174 @@
 import sendEmail from "../services/email.js";
 
+
+
+// utils/emailTemplates.js (add this function)
+
+export const sendOrderStatusEmail = async (userEmail, orderDetails) => {
+  const {
+    orderId,
+    status,           // e.g., "Order Placed", "Shipped", "Delivered", "Cancelled"
+    customStatus,
+    items,
+    totalAmount,
+    shippingAddress,
+    updatedAt
+  } = orderDetails;
+
+  const subject = `📦 Order Status Update - GutTalks (Order #${orderId})`;
+
+  const statusColor = {
+    'Order Placed': '#18606D',
+    'Processing': '#FF9800',
+    'Shipped': '#2196F3',
+    'Delivered': '#4CAF50',
+    'Cancelled': '#F44336'
+  }[status] || '#18606D';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Status Update - GutTalks</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #1A4D3E;
+      margin: 0;
+      padding: 20px;
+      background-color: #F4FAFB;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border: 1px solid #D9EEF2;
+    }
+    .header {
+      background: linear-gradient(135deg, #18606D 0%, #2A7F8F 100%);
+      padding: 25px 20px;
+      text-align: center;
+      color: white;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 25px;
+    }
+    .status-badge {
+      display: inline-block;
+      background-color: ${statusColor};
+      color: white;
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .info-box {
+      background-color: #F4FAFB;
+      border-left: 4px solid #18606D;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .order-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .order-table th, .order-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #D9EEF2;
+    }
+    .order-table th {
+      background-color: #E8F4F7;
+      color: #1A4D3E;
+    }
+    .total {
+      font-size: 18px;
+      font-weight: bold;
+      text-align: right;
+      margin-top: 10px;
+      color: #18606D;
+    }
+    .footer {
+      background-color: #F4FAFB;
+      padding: 15px;
+      text-align: center;
+      font-size: 12px;
+      color: #64748B;
+      border-top: 1px solid #D9EEF2;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #18606D;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 40px;
+      text-decoration: none;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📦 Order Status Update</h1>
+    </div>
+    <div class="content">
+      <p>Dear Customer,</p>
+      <p>Your order <strong>#${orderId}</strong> status has been updated to:</p>
+      <div style="text-align: center;">
+        <span class="status-badge">${customStatus || status}</span>
+      </div>
+      <div class="info-box">
+        <p><strong>📅 Updated on:</strong> ${new Date(updatedAt).toLocaleString('en-IN')}</p>
+        ${shippingAddress ? `<p><strong>📍 Shipping Address:</strong><br/>${shippingAddress.fullName}<br/>${shippingAddress.addressLine1}${shippingAddress.addressLine2 ? ', '+shippingAddress.addressLine2 : ''}<br/>${shippingAddress.city}, ${shippingAddress.state} - ${shippingAddress.pincode}<br/>📞 ${shippingAddress.phone}</p>` : ''}
+      </div>
+      
+      <h3>Order Summary</h3>
+      <table class="order-table">
+        <thead>
+          <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+        </thead>
+        <tbody>
+          ${items.map(item => `
+            <tr>
+              <td>${item.product?.name || 'Product'}</td>
+              <td>${item.quantity}</td>
+              <td>₹${item.price?.toFixed(2) || '0'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="total">
+        Total Paid: ₹${totalAmount?.toFixed(2) || '0'}
+      </div>
+      
+      <div style="text-align: center;">
+        <a href="${process.env.FRONTEND_URL}/orders/${orderId}" class="btn">View Order Details</a>
+      </div>
+      <p style="font-size: 12px; margin-top: 20px;">If you have any questions, please contact us at hello@guttalks.in</p>
+    </div>
+    <div class="footer">
+      <p>GutTalks – Your digestive wellness partner</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  await sendEmail({ to: userEmail, subject, html });
+};
 // utils/emailTemplates.js (or inside the controller)
 export const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
   const { bookingId, date, startTime, endTime, meetLink, price, userName } = bookingDetails;
@@ -293,6 +462,7 @@ export const sendBookingConfirmationEmail = async (userEmail, bookingDetails) =>
   
   await sendEmail({ to: userEmail, subject, html });
 };
+
 // utils/emailTemplates.js (add this function)
 export const sendRescheduleEmail = async (userEmail, details) => {
   const { bookingId, oldDate, oldStartTime, oldEndTime, newDate, newStartTime, newEndTime, meetLink, userName } = details;
@@ -354,3 +524,4 @@ export const sendRescheduleEmail = async (userEmail, details) => {
   `;
   await sendEmail({ to: userEmail, subject, html });
 };
+

@@ -45,7 +45,7 @@ import ScheduleCallModal from "../../components/ScheduleCallModal";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import useCheckLogin from "../../useCheckLogin"; // adjust path if needed
-
+import axios from "axios";
 // -------------------- Helper Components --------------------
 
 const SkeletonLoader = () => (
@@ -147,11 +147,37 @@ export default function ProductPage() {
   const [openFaq, setOpenFaq] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  // NEW: state for selected variant
+  const [selectedDuration, setSelectedDuration] = useState(null);
+  const [selectedPack, setSelectedPack] = useState(null);
+  const [selectedVariantPrice, setSelectedVariantPrice] = useState(null);
+  const [selectedVariantOriginalPrice, setSelectedVariantOriginalPrice] = useState(null);
+  const [selectedVariantLabel, setSelectedVariantLabel] = useState('');
+  const [selectedVariantType, setSelectedVariantType] = useState(''); // 'duration' or 'pack'
   const { addToCart } = useCart();
   const user = useSelector((state) => state.auth.user);
   const checkLogin = useCheckLogin();
 
-
+ // When product loads, set default selections (first option)
+  useEffect(() => {
+    if (product && product.productType === 'program') {
+      if (product.durationOptions && product.durationOptions.length > 0) {
+        const first = product.durationOptions[0];
+        setSelectedDuration(first);
+        setSelectedVariantPrice(first.salePrice);
+        setSelectedVariantOriginalPrice(first.originalPrice);
+        setSelectedVariantLabel(first.duration);
+        setSelectedVariantType('duration');
+      } else if (product.packOptions && product.packOptions.length > 0) {
+        const first = product.packOptions[0];
+        setSelectedPack(first);
+        setSelectedVariantPrice(first.salePrice);
+        setSelectedVariantOriginalPrice(first.originalPrice);
+        setSelectedVariantLabel(first.name);
+        setSelectedVariantType('pack');
+      }
+    }
+  }, [product]);
 
   useEffect(() => {
     if (user && localStorage.getItem('pendingBooking') === 'true') {
@@ -207,18 +233,19 @@ export default function ProductPage() {
       const count = reviewsList.length;
       const avg = count === 0 ? 0 : reviewsList.reduce((sum, r) => sum + r.rating, 0) / count;
       setRatingSummary({ avg: avg.toFixed(1), count, breakdown });
-
-      const likesRes = await ProductApi.getProductLikesCount(productId);
-      setLikesCount(likesRes.count || 0);
       if (user) {
         const liked = await ProductApi.checkUserInterest(productId);
         setIsLiked(!!liked?.isLiked);
       } else {
         setIsLiked(false);
       }
+      const likesRes = await axios.get(`${process.env.NEXT_PUBLIC_API}/api/user-interests/likeCount/${productId}`);
+      console.log("Likes count response:", likesRes.data);
+      setLikesCount(likesRes.data.count || 0);
+      
     } catch (err) {
-      console.error("Error fetching product data:", err);
-      toast.error("Failed to load product");
+      console.error("Error fetching product data:", err.message);
+     
     } finally {
       setLoading(false);
     }
@@ -287,10 +314,19 @@ export default function ProductPage() {
   // cart / buy / share etc.
   // ------------------------------------------------------------------
   const buyNow = () => {
+    window.Tawk_API.hideWidget();
     if (!product) return;
     if (!isConsultation) {
-      addToCart(product._id, quantity);
-      window.location.href = "/checkout";
+      const variant = selectedDuration || selectedPack;
+      const variantInfo = variant ? {
+        type: selectedVariantType,
+        name: selectedVariantLabel,
+        price: selectedVariantPrice,
+        originalPrice: selectedVariantOriginalPrice
+      } : null;
+      localStorage.setItem('selectedVariant', JSON.stringify(variantInfo));
+      addToCart(product._id, quantity, variantInfo);
+    
     } else {
       setShowScheduleModal(true);
     }
@@ -322,9 +358,17 @@ export default function ProductPage() {
   };
 
   const HandleAddToCart = async () => {
+     window.Tawk_API.hideWidget();
     if (!product || isConsultation) return;
-    await addToCart(product._id, quantity);
-    setToastMsg(`${product.name} added to cart`);
+    const variant = selectedDuration || selectedPack;
+    const variantInfo = variant ? {
+      type: selectedVariantType,
+      name: selectedVariantLabel,
+      price: selectedVariantPrice,
+      originalPrice: selectedVariantOriginalPrice
+    } : null;
+   await addToCart(product._id, quantity, variantInfo);
+    setToastMsg(`${product.name} (${selectedVariantLabel}) added to cart`);
     setTimeout(() => setToastMsg(null), 2500);
   };
 
@@ -335,9 +379,61 @@ export default function ProductPage() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
+// Update price when selection changes
+  useEffect(() => {
+    if (selectedDuration) {
+      setSelectedVariantPrice(selectedDuration.salePrice);
+      setSelectedVariantOriginalPrice(selectedDuration.originalPrice);
+      setSelectedVariantLabel(selectedDuration.duration);
+    } else if (selectedPack) {
+      setSelectedVariantPrice(selectedPack.salePrice);
+      setSelectedVariantOriginalPrice(selectedPack.originalPrice);
+      setSelectedVariantLabel(selectedPack.name);
+    }
+  }, [selectedDuration, selectedPack]);
   if (loading) return <SkeletonLoader />;
   if (!product) return <div className="min-h-screen flex items-center justify-center">Product not found</div>;
+
+  // Helper to render option cards
+  const renderOptions = (options, type, selected, setSelected, labelKey, priceKey = 'salePrice', originalPriceKey = 'originalPrice') => {
+    if (!options || options.length === 0) return null;
+    return (
+      <div className="mt-4">
+        <h3 className="font-semibold text-[#1A4D3E] mb-2">
+          {type === 'duration' ? 'Select Duration' : 'Select Pack'}
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          {options.map((opt, idx) => {
+            const isSelected = selected === opt;
+            const discountPercent = Math.round(((opt.originalPrice - opt.salePrice) / opt.originalPrice) * 100);
+            const perUnitPrice = (opt.salePrice / (type === 'pack' ? (opt.name.includes('Pack of') ? parseInt(opt.name.split(' ')[2]) : 1) : 1)).toFixed(0);
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelected(opt)}
+                className={`relative p-3 rounded-xl border-2 transition-all text-left min-w-[140px] ${
+                  isSelected
+                    ? 'border-[#18606D] bg-[#F4FAFB] shadow-md'
+                    : 'border-[#D9EEF2] bg-white hover:shadow'
+                }`}
+              >
+                {opt.label === 'Most Popular' && (
+                  <span className="absolute -top-2 right-2 bg-[#18606D] text-white text-[10px] px-2 py-0.5 rounded-full">
+                    Most Popular
+                  </span>
+                )}
+                <div className="font-semibold text-[#1A4D3E]">{opt[labelKey]}</div>
+                <div className="text-xs text-[#64748B] line-through">₹{opt[originalPriceKey]}</div>
+                <div className="text-lg font-bold text-[#18606D]">₹{opt[priceKey]}</div>
+                <div className="text-[10px] text-green-600">Save {discountPercent}%</div>
+                <div className="text-[10px] text-[#64748B]">₹{perUnitPrice}/{type === 'duration' ? 'mo' : 'kit'}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F4FAFB] via-white to-[#E8F4F7]">
@@ -353,6 +449,7 @@ export default function ProductPage() {
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
                 unoptimized
+                loading="eager"
               />
               <div className="absolute top-3 left-3 backdrop-blur-md bg-red-500/90 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
                 -{Math.round(((product.originalPrice - product.salePrice) / product.originalPrice) * 100)}%
@@ -467,10 +564,19 @@ export default function ProductPage() {
               <span className="text-sm text-[#18606D]">❤️ {likesCount} likes</span>
             </div>
 
-            <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-2xl sm:text-3xl font-bold text-[#18606D]">₹{product.salePrice}</span>
-              <span className="text-sm text-[#94A3B8] line-through">₹{product.originalPrice}</span>
-            </div>
+             <div className="flex flex-wrap items-baseline gap-3">
+    <span className="text-2xl sm:text-3xl font-bold text-[#18606D]">
+      ₹{selectedVariantPrice || product.salePrice}
+    </span>
+    <span className="text-sm text-[#94A3B8] line-through">
+      ₹{selectedVariantOriginalPrice || product.originalPrice}
+    </span>
+    {selectedVariantLabel && (
+      <span className="text-xs bg-[#E8F4F7] text-[#18606D] px-2 py-0.5 rounded-full">
+        {selectedVariantLabel}
+      </span>
+    )}
+    </div>
             <p className="text-xs text-[#64748B]">{product.taxNote}</p>
 
             {product.description && (
@@ -517,7 +623,18 @@ export default function ProductPage() {
                 )}
               </div>
             )}
-
+              {!isConsultation && (
+    <>
+      {/* Render duration options if any */}
+      {product.durationOptions && product.durationOptions.length > 0 && 
+        renderOptions(product.durationOptions, 'duration', selectedDuration, setSelectedDuration, 'duration', 'salePrice', 'originalPrice')
+      }
+      {/* Render pack options if any */}
+      {product.packOptions && product.packOptions.length > 0 && 
+        renderOptions(product.packOptions, 'pack', selectedPack, setSelectedPack, 'name', 'salePrice', 'originalPrice')
+      }
+    </>
+  )}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               {isConsultation ? (
                 <button
