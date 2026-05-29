@@ -4,7 +4,7 @@ import {
   getProductRatings, 
   getUserRating,
   getProductReviews
-} from '../controllers/ratingController.js';
+} from '../Controllers/ratingController.js';
 import { authMiddleware} from '../middleware/authMiddleware.js';
 
 
