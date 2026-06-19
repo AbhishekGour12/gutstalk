@@ -88,7 +88,7 @@ export default function ProductManagement({ searchTerm }) {
     setProductForm({ ...emptyProduct });
     setTempImageFiles([]);
     setDurationOptions([]);
-setPackOptions([]);
+    setPackOptions([]);
   };
 
   const openAddModal = () => {
@@ -105,12 +105,12 @@ setPackOptions([]);
       whatToExpect: product.whatToExpect || [],
       features: product.features || [],
       faqs: product.faqs || [],
-      
+
     });
     setTempImageFiles([]);
     setShowEditModal(true);
     setDurationOptions(product.durationOptions || []);
-setPackOptions(product.packOptions || []);
+    setPackOptions(product.packOptions || []);
   };
 
   // Helper functions for arrays (same as before)
@@ -318,36 +318,36 @@ setPackOptions(product.packOptions || []);
       setLoading(false);
     }
   };
-const addDurationOption = () => {
-  setDurationOptions([...durationOptions, { duration: '', originalPrice: '', salePrice: '', discountPercent: 0 }]);
-};
-const updateDurationOption = (idx, field, val) => {
-  const updated = [...durationOptions];
-  updated[idx][field] = val;
-  if (field === 'originalPrice' || field === 'salePrice') {
-    const original = field === 'originalPrice' ? Number(val) : updated[idx].originalPrice;
-    const sale = field === 'salePrice' ? Number(val) : updated[idx].salePrice;
-    if (original && sale) {
-      updated[idx].discountPercent = Math.round(((original - sale) / original) * 100);
+  const addDurationOption = () => {
+    setDurationOptions([...durationOptions, { duration: '', originalPrice: '', salePrice: '', discountPercent: 0 }]);
+  };
+  const updateDurationOption = (idx, field, val) => {
+    const updated = [...durationOptions];
+    updated[idx][field] = val;
+    if (field === 'originalPrice' || field === 'salePrice') {
+      const original = field === 'originalPrice' ? Number(val) : updated[idx].originalPrice;
+      const sale = field === 'salePrice' ? Number(val) : updated[idx].salePrice;
+      if (original && sale) {
+        updated[idx].discountPercent = Math.round(((original - sale) / original) * 100);
+      }
     }
-  }
-  setDurationOptions(updated);
-};
-const removeDurationOption = (idx) => {
-  setDurationOptions(durationOptions.filter((_, i) => i !== idx));
-};
+    setDurationOptions(updated);
+  };
+  const removeDurationOption = (idx) => {
+    setDurationOptions(durationOptions.filter((_, i) => i !== idx));
+  };
 
-const addPackOption = () => {
-  setPackOptions([...packOptions, { pack: '', price: 0 }]);
-};
-const updatePackOption = (idx, field, val) => {
-  const updated = [...packOptions];
-  updated[idx][field] = field === 'price' ? parseFloat(val) : val;
-  setPackOptions(updated);
-};
-const removePackOption = (idx) => {
-  setPackOptions(packOptions.filter((_, i) => i !== idx));
-};
+  const addPackOption = () => {
+    setPackOptions([...packOptions, { pack: '', price: 0 }]);
+  };
+  const updatePackOption = (idx, field, val) => {
+    const updated = [...packOptions];
+    updated[idx][field] = field === 'price' ? parseFloat(val) : val;
+    setPackOptions(updated);
+  };
+  const removePackOption = (idx) => {
+    setPackOptions(packOptions.filter((_, i) => i !== idx));
+  };
 
   return (
     <div className="space-y-6">
@@ -404,11 +404,10 @@ const removePackOption = (idx) => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      product.productType === "consultation" 
-                        ? "bg-blue-100 text-blue-700" 
-                        : "bg-green-100 text-green-700"
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.productType === "consultation"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                      }`}>
                       {product.productType === "consultation" ? "Consultation" : "Program / Kit"}
                     </span>
                   </td>
@@ -447,8 +446,8 @@ const removePackOption = (idx) => {
         )}
       </div>
 
-     
-         {/* Add/Edit Modal (simplified form) */}
+
+      {/* Add/Edit Modal (simplified form) */}
       <AnimatePresence>
         {(showAddModal || showEditModal) && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -475,12 +474,12 @@ const removePackOption = (idx) => {
                 <div className="grid md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Product Name *</label>
-                    <input type="text" required value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})}
+                    <input type="text" required value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D]" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Product Type *</label>
-                    <select value={productForm.productType} onChange={e => setProductForm({...productForm, productType: e.target.value})}
+                    <select value={productForm.productType} onChange={e => setProductForm({ ...productForm, productType: e.target.value })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl">
                       <option value="consultation">Consultation</option>
                       <option value="program">Program / Kit</option>
@@ -488,39 +487,39 @@ const removePackOption = (idx) => {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Original Price (₹)</label>
-                    <input type="number" step="0.01" value={productForm.originalPrice} onChange={e => setProductForm({...productForm, originalPrice: parseFloat(e.target.value)})}
+                    <input type="number" step="0.01" value={productForm.originalPrice} onChange={e => setProductForm({ ...productForm, originalPrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Sale Price (₹) *</label>
-                    <input type="number" step="0.01" required value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})}
+                    <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Sale Price (₹) </label>
+                    <input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({ ...productForm, salePrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Rating (0-5)</label>
-                    <input type="number" step="0.1" min="0" max="5" value={productForm.rating} onChange={e => setProductForm({...productForm, rating: parseFloat(e.target.value)})}
+                    <input type="number" step="0.1" min="0" max="5" value={productForm.rating} onChange={e => setProductForm({ ...productForm, rating: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Review Count</label>
-                    <input type="number" value={productForm.reviewCount} onChange={e => setProductForm({...productForm, reviewCount: parseInt(e.target.value)})}
+                    <input type="number" value={productForm.reviewCount} onChange={e => setProductForm({ ...productForm, reviewCount: parseInt(e.target.value) })}
                       className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Short Description</label>
-                  <textarea rows={2} value={productForm.shortDescription} onChange={e => setProductForm({...productForm, shortDescription: e.target.value})}
+                  <textarea rows={2} value={productForm.shortDescription} onChange={e => setProductForm({ ...productForm, shortDescription: e.target.value })}
                     className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Full Description</label>
-                  <textarea rows={4} value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})}
+                  <textarea rows={4} value={productForm.description} onChange={e => setProductForm({ ...productForm, description: e.target.value })}
                     className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Tax Note</label>
-                  <input type="text" value={productForm.taxNote} onChange={e => setProductForm({...productForm, taxNote: e.target.value})}
+                  <input type="text" value={productForm.taxNote} onChange={e => setProductForm({ ...productForm, taxNote: e.target.value })}
                     className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                 </div>
 
@@ -529,12 +528,12 @@ const removePackOption = (idx) => {
                   <div className="grid md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Duration (e.g., 30 mins)</label>
-                      <input type="text" value={productForm.consultationDuration} onChange={e => setProductForm({...productForm, consultationDuration: e.target.value})}
+                      <input type="text" value={productForm.consultationDuration} onChange={e => setProductForm({ ...productForm, consultationDuration: e.target.value })}
                         className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Expert Name</label>
-                      <input type="text" value={productForm.expertName} onChange={e => setProductForm({...productForm, expertName: e.target.value})}
+                      <input type="text" value={productForm.expertName} onChange={e => setProductForm({ ...productForm, expertName: e.target.value })}
                         className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                     </div>
                   </div>
@@ -545,89 +544,89 @@ const removePackOption = (idx) => {
                   <div className="grid md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Stock</label>
-                      <input type="number" value={productForm.stock} onChange={e => setProductForm({...productForm, stock: parseInt(e.target.value)})}
+                      <input type="number" value={productForm.stock} onChange={e => setProductForm({ ...productForm, stock: parseInt(e.target.value) })}
                         className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-[#1A4D3E] mb-1">Weight (kg)</label>
-                      <input type="number" step="0.01" value={productForm.weight} onChange={e => setProductForm({...productForm, weight: parseFloat(e.target.value)})}
+                      <input type="number" step="0.01" value={productForm.weight} onChange={e => setProductForm({ ...productForm, weight: parseFloat(e.target.value) })}
                         className="w-full px-4 py-2 bg-[#F4FAFB] border border-[#D9EEF2] rounded-xl" />
                     </div>
                   </div>
                 )}
-              {productForm.productType === "program" && (
-  <>
-    {/* Duration Options */}
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <label className="text-sm font-semibold text-[#1A4D3E]">Duration Options (e.g., 1 Month, 3 Months)</label>
-        <button type="button" onClick={addDurationOption} className="text-xs text-[#18606D] flex items-center gap-1">
-          <FaPlus size={10} /> Add Duration
-        </button>
-      </div>
-      {durationOptions.map((opt, idx) => (
-        <div key={idx} className="border border-[#D9EEF2] rounded-xl p-3 mb-3 bg-[#F4FAFB]">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
-            <div>
-              <label className="block text-xs mb-1">Duration</label>
-              <input type="text" value={opt.duration} onChange={e => updateDurationOption(idx, 'duration', e.target.value)} placeholder="e.g., 1 Month" className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Original Price (₹)</label>
-              <input type="number" step="0.01" value={opt.originalPrice} onChange={e => updateDurationOption(idx, 'originalPrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Sale Price (₹)</label>
-              <input type="number" step="0.01" value={opt.salePrice} onChange={e => updateDurationOption(idx, 'salePrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div className="flex justify-between items-end">
-              <div>
-                <label className="block text-xs mb-1">Discount %</label>
-                <input type="text" value={opt.discountPercent} disabled className="w-full px-2 py-1 bg-gray-100 border rounded-lg text-sm" />
-              </div>
-              <button type="button" onClick={() => removeDurationOption(idx)} className="text-red-500 p-1"><FaTrash size={14} /></button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
+                {productForm.productType === "program" && (
+                  <>
+                    {/* Duration Options */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-semibold text-[#1A4D3E]">Duration Options (e.g., 1 Month, 3 Months)</label>
+                        <button type="button" onClick={addDurationOption} className="text-xs text-[#18606D] flex items-center gap-1">
+                          <FaPlus size={10} /> Add Duration
+                        </button>
+                      </div>
+                      {durationOptions.map((opt, idx) => (
+                        <div key={idx} className="border border-[#D9EEF2] rounded-xl p-3 mb-3 bg-[#F4FAFB]">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                            <div>
+                              <label className="block text-xs mb-1">Duration</label>
+                              <input type="text" value={opt.duration} onChange={e => updateDurationOption(idx, 'duration', e.target.value)} placeholder="e.g., 1 Month" className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs mb-1">Original Price (₹)</label>
+                              <input type="number" step="0.01" value={opt.originalPrice} onChange={e => updateDurationOption(idx, 'originalPrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs mb-1">Sale Price (₹)</label>
+                              <input type="number" step="0.01" value={opt.salePrice} onChange={e => updateDurationOption(idx, 'salePrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <label className="block text-xs mb-1">Discount %</label>
+                                <input type="text" value={opt.discountPercent} disabled className="w-full px-2 py-1 bg-gray-100 border rounded-lg text-sm" />
+                              </div>
+                              <button type="button" onClick={() => removeDurationOption(idx)} className="text-red-500 p-1"><FaTrash size={14} /></button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-    {/* Pack Options */}
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <label className="text-sm font-semibold text-[#1A4D3E]">Pack Options (e.g., Single, Pack of 2)</label>
-        <button type="button" onClick={addPackOption} className="text-xs text-[#18606D] flex items-center gap-1">
-          <FaPlus size={10} /> Add Pack
-        </button>
-      </div>
-      {packOptions.map((opt, idx) => (
-        <div key={idx} className="border border-[#D9EEF2] rounded-xl p-3 mb-3 bg-[#F4FAFB]">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
-            <div>
-              <label className="block text-xs mb-1">Pack Name</label>
-              <input type="text" value={opt.name} onChange={e => updatePackOption(idx, 'name', e.target.value)} placeholder="e.g., Family Pack" className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Original Price (₹)</label>
-              <input type="number" step="0.01" value={opt.originalPrice} onChange={e => updatePackOption(idx, 'originalPrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Sale Price (₹)</label>
-              <input type="number" step="0.01" value={opt.salePrice} onChange={e => updatePackOption(idx, 'salePrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
-            </div>
-            <div className="flex justify-between items-end">
-              <div>
-                <label className="block text-xs mb-1">Discount %</label>
-                <input type="text" value={opt.discountPercent} disabled className="w-full px-2 py-1 bg-gray-100 border rounded-lg text-sm" />
-              </div>
-              <button type="button" onClick={() => removePackOption(idx)} className="text-red-500 p-1"><FaTrash size={14} /></button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </>
-)}
+                    {/* Pack Options */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-semibold text-[#1A4D3E]">Pack Options (e.g., Single, Pack of 2)</label>
+                        <button type="button" onClick={addPackOption} className="text-xs text-[#18606D] flex items-center gap-1">
+                          <FaPlus size={10} /> Add Pack
+                        </button>
+                      </div>
+                      {packOptions.map((opt, idx) => (
+                        <div key={idx} className="border border-[#D9EEF2] rounded-xl p-3 mb-3 bg-[#F4FAFB]">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                            <div>
+                              <label className="block text-xs mb-1">Pack Name</label>
+                              <input type="text" value={opt.name} onChange={e => updatePackOption(idx, 'name', e.target.value)} placeholder="e.g., Family Pack" className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs mb-1">Original Price (₹)</label>
+                              <input type="number" step="0.01" value={opt.originalPrice} onChange={e => updatePackOption(idx, 'originalPrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs mb-1">Sale Price (₹)</label>
+                              <input type="number" step="0.01" value={opt.salePrice} onChange={e => updatePackOption(idx, 'salePrice', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-white border rounded-lg text-sm" />
+                            </div>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <label className="block text-xs mb-1">Discount %</label>
+                                <input type="text" value={opt.discountPercent} disabled className="w-full px-2 py-1 bg-gray-100 border rounded-lg text-sm" />
+                              </div>
+                              <button type="button" onClick={() => removePackOption(idx)} className="text-red-500 p-1"><FaTrash size={14} /></button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {/* Benefits */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
@@ -716,7 +715,7 @@ const removePackOption = (idx) => {
           </div>
         )}
       </AnimatePresence>
-       
+
 
       {/* BULK UPLOAD MODAL */}
       <AnimatePresence>
