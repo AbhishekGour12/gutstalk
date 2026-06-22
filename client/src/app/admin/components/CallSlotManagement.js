@@ -30,6 +30,8 @@ export default function CallSlotManagement() {
   const [slotDuration, setSlotDuration] = useState(45);
   const [breakBetweenSlots, setBreakBetweenSlots] = useState(5);
 
+  const todayMin = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
   const fetchSlots = async () => {
     try {
       const res = await availabilityAPI.getAll();
@@ -119,6 +121,7 @@ export default function CallSlotManagement() {
                   <input 
                     type="date" 
                     required 
+                    min={todayMin}
                     value={rangeStart} 
                     onChange={e => setRangeStart(e.target.value)}
                     className="w-full px-4 py-2.5 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none"
@@ -129,6 +132,7 @@ export default function CallSlotManagement() {
                   <input 
                     type="date" 
                     required 
+                    min={todayMin}
                     value={rangeEnd} 
                     onChange={e => setRangeEnd(e.target.value)}
                     className="w-full px-4 py-2.5 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none"
@@ -141,6 +145,7 @@ export default function CallSlotManagement() {
                 <input 
                   type="date" 
                   required 
+                  min={todayMin}
                   value={singleDate} 
                   onChange={e => setSingleDate(e.target.value)}
                   className="w-full px-4 py-2.5 border border-[#D9EEF2] rounded-xl focus:ring-2 focus:ring-[#18606D] focus:outline-none"

@@ -6,7 +6,7 @@ import {
   FiUser, FiMail, FiPhone, FiCheckCircle, FiCreditCard, FiLogIn,
   FiArrowLeft
 } from 'react-icons/fi';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { availabilityAPI } from '../lib/availablity';
 import { bookingAPI } from '../lib/booking';
 import { paymentAPI } from '../lib/payment';
@@ -503,11 +503,14 @@ const validateMcqs = () => {
                     const isSelected = selectedDate && isSameDay(day, selectedDate);
                     const hasSlots = hasAvailableSlots(day);
                     const isTodayDate = isToday(day);
+                    const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
                     return (
                       <button
                         key={day}
-                        onClick={() => setSelectedDate(day)}
+                        onClick={() => !isPast && setSelectedDate(day)}
+                        disabled={isPast}
                         className={`relative p-2 rounded-full text-sm transition-all ${
+                          isPast ? 'text-gray-300 cursor-not-allowed' :
                           isSelected ? 'bg-[#18606D] text-white shadow-md' : !isSelected && hasSlots ? 'bg-[#E8F4F7] text-[#18606D] font-medium' : !isSelected && !hasSlots && !isTodayDate ? 'text-[#64748B] hover:bg-[#F4FAFB]' : isTodayDate && !isSelected && !hasSlots ? 'border border-[#18606D] text-[#18606D]' : ''
                         }`}
                       >

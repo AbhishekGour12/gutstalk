@@ -1,6 +1,26 @@
 import Slot from '../Models/Slot.js';
 import TempSlotHold from '../Models/TempSlotHold.js';
 
+// Today at midnight (IST), stored as UTC — matches how slot dates are saved
+const getTodayStartUTC = () => {
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const [year, month, day] = todayStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+};
+
+// Remove all slots and holds before today
+export const deletePastSlots = async () => {
+  const todayStart = getTodayStartUTC();
+  const [slotResult, holdResult] = await Promise.all([
+    Slot.deleteMany({ date: { $lt: todayStart } }),
+    TempSlotHold.deleteMany({ date: { $lt: todayStart } }),
+  ]);
+  return {
+    deletedSlots: slotResult.deletedCount,
+    deletedHolds: holdResult.deletedCount,
+  };
+};
+
 // Helper: parse time (minutes since midnight)
 const parseTime = (timeStr) => {
   const [h, m] = timeStr.split(':').map(Number);
@@ -16,11 +36,15 @@ const formatTime = (minutes) => {
 // Generate slots for a given date range
 export const generateSlots = async (req, res) => {
   try {
+    await deletePastSlots();
+
     const { startDate, endDate, startTime, endTime, slotDuration, breakBetweenSlots } = req.body;
     
     if (!startDate || !endDate || !startTime || !endTime) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    const todayStart = getTodayStartUTC();
 
     // Parse the date strings directly - no timezone conversion
     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
@@ -40,6 +64,10 @@ export const generateSlots = async (req, res) => {
     for (const date of dates) {
       // Store the date as UTC midnight (no timezone shift)
       const targetDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0));
+      if (targetDate < todayStart) {
+        skippedCount++;
+        continue;
+      }
       
       // Generate time slots
       let current = parseTime(startTime);
@@ -92,8 +120,16 @@ export const generateSlots = async (req, res) => {
 // Get available slots for a date (not booked, not held)
 export const getAvailableSlots = async (req, res) => {
   try {
+    await deletePastSlots();
+
     const { date, userId } = req.query;
     if (!date) return res.status(400).json({ error: 'Date required' });
+
+    const [year, month, day] = date.split('-').map(Number);
+    const requestedDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    if (requestedDay < getTodayStartUTC()) {
+      return res.json({ slots: [] });
+    }
 
     const startOfDay = new Date(date + "T00:00:00.000Z");
     const endOfDay = new Date(date + "T23:59:59.999Z");
@@ -130,7 +166,10 @@ export const getAvailableSlots = async (req, res) => {
 // Get all slots (admin)
 export const getAllSlots = async (req, res) => {
   try {
-    const slots = await Slot.find().sort({ date: 1, startTime: 1 });
+    await deletePastSlots();
+
+    const todayStart = getTodayStartUTC();
+    const slots = await Slot.find({ date: { $gte: todayStart } }).sort({ date: 1, startTime: 1 });
     
     // Group by date
     const grouped = {};
@@ -267,8 +306,11 @@ export const releaseSlot = async (req, res) => {
 // Get all dates that have available slots
 export const getAvailableDates = async (req, res) => {
   try {
+    await deletePastSlots();
+
+    const todayStart = getTodayStartUTC();
     const slots = await Slot.aggregate([
-      { $match: { isBooked: false } },
+      { $match: { isBooked: false, date: { $gte: todayStart } } },
       { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } } } },
       { $sort: { _id: 1 } }
     ]);

@@ -41,6 +41,43 @@ const CartSlideOut = () => {
 
   const codFee = 52;
   
+  const getCartItemProductId = (item) => {
+    if (item.productId) return String(item.productId);
+    if (typeof item.product === "string") return item.product;
+    if (item.product?._id) return String(item.product._id);
+    return null;
+  };
+
+  const resolveVariantPrice = (item) => {
+    const variant = item.variant;
+    const product = item.product;
+    if (!variant || !product) return null;
+
+    if (variant.price != null && variant.price !== "") {
+      return Number(variant.price);
+    }
+
+    if (variant.type === "both" && variant.name?.includes(" + ")) {
+      const [durLabel, packLabel] = variant.name.split(" + ").map((s) => s.trim());
+      const dur = product.durationOptions?.find((d) => d.duration === durLabel);
+      const pack = product.packOptions?.find((p) => p.name === packLabel);
+      if (dur && pack) return Number(dur.salePrice) + Number(pack.salePrice);
+    }
+    if (variant.type === "duration" || variant.name) {
+      const dur = product.durationOptions?.find(
+        (d) => d.duration === variant.name || variant.name?.includes(d.duration)
+      );
+      if (dur?.salePrice != null) return Number(dur.salePrice);
+    }
+    if (variant.type === "pack" || variant.name) {
+      const pack = product.packOptions?.find(
+        (p) => p.name === variant.name || variant.name?.includes(p.name)
+      );
+      if (pack?.salePrice != null) return Number(pack.salePrice);
+    }
+    return null;
+  };
+
   // Load Products Logic
   useEffect(() => {
     const loadProducts = async () => {
@@ -54,13 +91,26 @@ const CartSlideOut = () => {
       try {
         const final = [];
         for (const item of cartItems) {
-          const id = item.product?._id || item.productId;
-          if (id) {
-            const p = await ProductApi.getProductById(id);
-            final.push({ ...item, product: p });
+          const id = getCartItemProductId(item);
+          if (!id) continue;
+
+          let product = item.product;
+          if (typeof product === "string" || !product?.name) {
+            product = await ProductApi.getProductById(id);
           }
+
+          final.push({
+            ...item,
+            product,
+            variant: item.variant ?? null,
+          });
         }
-        setMappedCart(final);
+
+        if (final.length > 0) {
+          setMappedCart(final);
+        } else {
+          console.warn("Cart sync: could not resolve products for cart items");
+        }
       } catch (err) {
         console.error("Cart Sync Error:", err);
       } finally {
@@ -138,14 +188,14 @@ useEffect(() => { fetchCart(); }, [user]);
   // 3. CALCULATION
   // ================================
   const calculateUnitFinalPrice = (item) => {
-  if (!item.product) return 0;
-  // Use variant price if available
-  if (item.variant && item.variant.price) {
-    return Number(item.variant.price);
-  }
-  const price = item.product.salePrice ?? item.product.price ?? item.product.originalPrice ?? 0;
-  return Number(price);
-};
+    if (!item.product) return 0;
+
+    const variantPrice = resolveVariantPrice(item);
+    if (variantPrice != null) return variantPrice;
+
+    const price = item.product.salePrice ?? item.product.price ?? item.product.originalPrice ?? 0;
+    return Number(price);
+  };
 
 
  const subtotal = useMemo(() => {
@@ -261,7 +311,6 @@ useEffect(() => { fetchCart(); }, [user]);
       toast.success("Address saved & Shipping updated!");
       localStorage.setItem("shippingAddress", JSON.stringify(address));
       setToken(charge.user.phone);
-      await fetchCart();  
       setCheckoutStep("coupon");
     } catch (err) {
       toast.error(err.message || "Shipping error");
@@ -527,7 +576,7 @@ useEffect(() => { fetchCart(); }, [user]);
                   mappedCart.map((item) => {
   const unitPrice = calculateUnitFinalPrice(item);
   return (
-    <div key={item.product._id} className="flex gap-3 bg-gray-100 p-3 rounded-lg mb-3">
+    <div key={item._id || `${getCartItemProductId(item)}-${item.variant?.name || "default"}`} className="flex gap-3 bg-gray-100 p-3 rounded-lg mb-3">
       <img src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.product.imageUrls[0]}`} className="w-20 h-20 rounded-lg object-cover" />
       <div className="flex-1">
         <p className="font-semibold">{item.product.name}</p>

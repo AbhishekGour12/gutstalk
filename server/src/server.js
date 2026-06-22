@@ -23,6 +23,7 @@ import dashboardRoutes from "./Routes/dashboardRoutes.js";
 import {Server} from "socket.io";
 import http from "http";
 import { createAdmin } from "./services/createAdmin.js";
+import { deletePastSlots } from "./Controllers/availablityController.js";
 
 const app = express();
 dotenv.config();
@@ -51,7 +52,16 @@ app.use(cors({
 }));
 app.use(express.json());
 
-MongoDBConnect();
+MongoDBConnect().then(async () => {
+  try {
+    const { deletedSlots, deletedHolds } = await deletePastSlots();
+    if (deletedSlots > 0 || deletedHolds > 0) {
+      console.log(`Cleaned up ${deletedSlots} past slot(s) and ${deletedHolds} hold(s)`);
+    }
+  } catch (err) {
+    console.error("Past slot cleanup failed:", err.message);
+  }
+});
 
 
 const server = http.createServer(app);
